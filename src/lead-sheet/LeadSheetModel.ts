@@ -10,6 +10,7 @@ import {
   Measure,
   Pitch,
   generateEventId,
+  pitchToMidi,
 } from "./types";
 import {
   computeMeasures,
@@ -21,17 +22,6 @@ type ChordMode = {
   text: string;
   openCaret: number;
 } | null;
-
-// MIDI note numbers for pitch letters (C=0, D=2, E=4, F=5, G=7, A=9, B=11)
-const PITCH_LETTER_TO_CHROMA: Record<PitchLetter, number> = {
-  C: 0,
-  D: 2,
-  E: 4,
-  F: 5,
-  G: 7,
-  A: 9,
-  B: 11,
-};
 
 // Default octave for first note (C4 = MIDI 60)
 const DEFAULT_OCTAVE = 4;
@@ -264,27 +254,23 @@ export class LeadSheetModel {
     const accidental = this.pendingAccidental.get();
     const duration = this.currentDuration.get();
 
-    // Calculate MIDI note
-    const chroma = PITCH_LETTER_TO_CHROMA[letter];
-    let midi = chroma + DEFAULT_OCTAVE * 12;
-
-    // Apply accidental
-    if (accidental === "#") {
-      midi += 1;
-    } else if (accidental === "b") {
-      midi -= 1;
-    }
+    // Start with default octave
+    let octave = DEFAULT_OCTAVE;
 
     // Apply nearest-octave rule
     const prevMidi = this.prevNoteMidiAtCaret.get();
     if (prevMidi !== null) {
-      midi = findNearestOctave(midi, prevMidi);
+      // Create temporary pitch to compute midi
+      const tempPitch: Pitch = { letter, accidental, octave: DEFAULT_OCTAVE };
+      const defaultMidi = pitchToMidi(tempPitch);
+      const nearestMidi = findNearestOctave(defaultMidi, prevMidi);
+      octave = Math.floor(nearestMidi / 12);
     }
 
     const pitch: Pitch = {
-      midi,
       letter,
       accidental,
+      octave,
     };
 
     const newEvent: MelodyEvent = {

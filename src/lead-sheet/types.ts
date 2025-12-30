@@ -11,12 +11,33 @@ export type PitchLetter = "A" | "B" | "C" | "D" | "E" | "F" | "G";
 
 export type Accidental = "#" | "b" | null;
 
-// TODO(ryan): don't like redundancy between midi and letter
 export type Pitch = {
-  midi: number;
   letter: PitchLetter;
   accidental: Accidental;
+  octave: number;
 };
+
+// MIDI note numbers for pitch letters (C=0, D=2, E=4, F=5, G=7, A=9, B=11)
+const PITCH_LETTER_TO_CHROMA: Record<PitchLetter, number> = {
+  C: 0,
+  D: 2,
+  E: 4,
+  F: 5,
+  G: 7,
+  A: 9,
+  B: 11,
+};
+
+// Convert pitch to MIDI note number
+export function pitchToMidi(pitch: Pitch): number {
+  let midi = pitch.octave * 12 + PITCH_LETTER_TO_CHROMA[pitch.letter];
+  if (pitch.accidental === "#") {
+    midi += 1;
+  } else if (pitch.accidental === "b") {
+    midi -= 1;
+  }
+  return midi;
+}
 
 export type MelodyEvent =
   | {

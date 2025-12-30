@@ -34,11 +34,10 @@ function durationToVexFlow(duration: "1/4" | "1/8" | "1/16"): string {
 
 // Convert pitch to VexFlow key string (e.g., "c/4", "d#/5")
 function pitchToVexFlowKey(
-  midi: number,
   letter: string,
+  octave: number,
   accidental: Accidental
 ): string {
-  const octave = Math.floor(midi / 12) - 1; // VexFlow uses scientific pitch notation (C4 = middle C)
   const vexLetter = letter.toLowerCase();
 
   // Don't include accidental in the key string - we'll add it separately
@@ -162,8 +161,8 @@ function renderMeasures(
         if (event.kind === "note") {
           const vexDuration = durationToVexFlow(event.duration);
           const vexKey = pitchToVexFlowKey(
-            event.pitch.midi,
             event.pitch.letter,
+            event.pitch.octave,
             event.pitch.accidental
           );
 

@@ -5,6 +5,7 @@ import {
   MeasureStatus,
   durationToUnits,
   getBarCapacity,
+  pitchToMidi,
 } from "./types";
 
 // Compute measures from a flat event list and time signature
@@ -121,7 +122,7 @@ export function findPrevNoteMidi(
   for (let i = caret - 1; i >= 0; i--) {
     const event = events[i];
     if (event && event.kind === "note") {
-      return event.pitch.midi;
+      return pitchToMidi(event.pitch);
     }
   }
   return null;
