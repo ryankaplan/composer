@@ -1,7 +1,10 @@
 import React from "react";
 import { Box, Flex } from "@chakra-ui/react";
+import { Tooltip } from "@chakra-ui/react/tooltip";
 import { useObservable } from "../lib/observable";
 import { model } from "../lead-sheet/LeadSheetModel";
+import { Duration } from "../lead-sheet/types";
+import { formatShortcut } from "../lib/format-shortcut";
 
 export function Toolbar() {
   const timeSignature = useObservable(model.timeSignature);
@@ -15,49 +18,283 @@ export function Toolbar() {
     model.setTimeSignature({ beatsPerBar, beatUnit: 4 });
   }
 
+  function handleDurationChange(duration: Duration) {
+    model.setCurrentDuration(duration);
+  }
+
+  function handleSharpClick() {
+    model.toggleAccidentalSelectionOrLeftNote("#");
+  }
+
+  function handleFlatClick() {
+    model.toggleAccidentalSelectionOrLeftNote("b");
+  }
+
+  function handleNaturalClick() {
+    model.naturalizeSelectionOrLeftNote();
+  }
+
+  function handleTieClick() {
+    model.toggleTieAcrossCaret();
+  }
+
   return (
     <Flex
       as="nav"
-      bg="gray.100"
+      bg="white"
       borderBottom="1px solid"
-      borderColor="gray.300"
-      px={4}
-      py={2}
-      gap={6}
+      borderColor="gray.200"
+      px={3}
+      py={1.5}
+      gap={3}
       alignItems="center"
       flexWrap="wrap"
+      boxShadow="0 1px 3px rgba(0, 0, 0, 0.04)"
     >
-      <Box display="flex" alignItems="center" gap={2}>
-        <label htmlFor="time-sig">Time:</label>
+      {/* Time Signature */}
+      <Flex alignItems="center" gap={1.5}>
+        <Box fontSize="xs" color="gray.600" fontWeight="medium">
+          Time:
+        </Box>
         <select
           id="time-sig"
           value={timeSignature.beatsPerBar}
           onChange={handleTimeSignatureChange}
           style={{
-            padding: "4px 8px",
+            padding: "3px 6px",
             borderRadius: "4px",
-            border: "1px solid #ccc",
+            border: "1px solid #e2e8f0",
             backgroundColor: "white",
+            fontSize: "13px",
+            cursor: "pointer",
+            outline: "none",
+            transition: "all 0.15s ease",
+          }}
+          onMouseEnter={(e) => {
+            e.currentTarget.style.borderColor = "#cbd5e0";
+          }}
+          onMouseLeave={(e) => {
+            e.currentTarget.style.borderColor = "#e2e8f0";
           }}
         >
           <option value="3">3/4</option>
           <option value="4">4/4</option>
         </select>
-      </Box>
+      </Flex>
 
-      <Box>
-        Duration: <strong>{currentDuration}</strong>
-      </Box>
+      {/* Divider */}
+      <Box width="1px" height="20px" bg="gray.200" />
 
-      {pendingAccidental && (
-        <Box color="blue.600">
-          Accidental: <strong>{pendingAccidental}</strong>
+      {/* Duration Segmented Control */}
+      <Flex alignItems="center" gap={1.5}>
+        <Box fontSize="xs" color="gray.600" fontWeight="medium">
+          Duration:
         </Box>
-      )}
+        <Flex
+          bg="gray.50"
+          borderRadius="6px"
+          padding="2px"
+          border="1px solid"
+          borderColor="gray.200"
+        >
+          <DurationButton
+            label="♩"
+            duration="1/4"
+            currentDuration={currentDuration}
+            onClick={() => handleDurationChange("1/4")}
+            shortcut={formatShortcut(["digit4"])}
+          />
+          <DurationButton
+            label="♪"
+            duration="1/8"
+            currentDuration={currentDuration}
+            onClick={() => handleDurationChange("1/8")}
+            shortcut={formatShortcut(["digit8"])}
+          />
+          <DurationButton
+            label="𝅘𝅥𝅯"
+            duration="1/16"
+            currentDuration={currentDuration}
+            onClick={() => handleDurationChange("1/16")}
+            shortcut={formatShortcut(["digit6"])}
+          />
+        </Flex>
+      </Flex>
 
-      <Box>
-        Caret: {caret} / {events.length}
-      </Box>
+      {/* Divider */}
+      <Box width="1px" height="20px" bg="gray.200" />
+
+      {/* Accidentals */}
+      <Flex alignItems="center" gap={1.5}>
+        <Box fontSize="xs" color="gray.600" fontWeight="medium">
+          Accidentals:
+        </Box>
+        <Flex gap={1}>
+          <IconButton
+            label="♮"
+            tooltip={`Natural (${formatShortcut(["n"])})`}
+            onClick={handleNaturalClick}
+          />
+          <IconButton
+            label="♯"
+            tooltip={`Sharp (${formatShortcut(["bracketright"])})`}
+            onClick={handleSharpClick}
+          />
+          <IconButton
+            label="♭"
+            tooltip={`Flat (${formatShortcut(["bracketleft"])})`}
+            onClick={handleFlatClick}
+          />
+        </Flex>
+      </Flex>
+
+      {/* Divider */}
+      <Box width="1px" height="20px" bg="gray.200" />
+
+      {/* Tie */}
+      <IconButton
+        label="⌢"
+        tooltip={`Toggle Tie (${formatShortcut(["t"])})`}
+        onClick={handleTieClick}
+      />
+
+      {/* Spacer */}
+      <Box flex="1" />
+
+      {/* Status indicators */}
+      <Flex gap={2} fontSize="xs" color="gray.500">
+        {pendingAccidental && (
+          <Box
+            bg="blue.50"
+            color="blue.700"
+            px={1.5}
+            py={0.5}
+            borderRadius="md"
+            fontSize="xs"
+            fontWeight="medium"
+          >
+            Pending: {pendingAccidental === "#" ? "♯" : "♭"}
+          </Box>
+        )}
+        <Box>
+          Position: {caret} / {events.length}
+        </Box>
+      </Flex>
     </Flex>
+  );
+}
+
+type DurationButtonProps = {
+  label: string;
+  duration: Duration;
+  currentDuration: Duration;
+  onClick: () => void;
+  shortcut: string;
+};
+
+function DurationButton(props: DurationButtonProps) {
+  const { label, duration, currentDuration, onClick, shortcut } = props;
+  const isActive = currentDuration === duration;
+
+  return (
+    <Tooltip.Root positioning={{ placement: "bottom" }}>
+      <Tooltip.Trigger asChild>
+        <Box
+          as="button"
+          onClick={onClick}
+          bg={isActive ? "white" : "transparent"}
+          color={isActive ? "gray.900" : "gray.600"}
+          px={2}
+          py={1}
+          borderRadius="4px"
+          fontSize="md"
+          fontWeight="medium"
+          cursor="pointer"
+          userSelect="none"
+          transition="all 0.15s ease"
+          border={isActive ? "1px solid" : "1px solid transparent"}
+          borderColor={isActive ? "gray.300" : "transparent"}
+          boxShadow={isActive ? "0 1px 2px rgba(0, 0, 0, 0.05)" : "none"}
+          _hover={{
+            bg: isActive ? "white" : "gray.100",
+            color: "gray.900",
+          }}
+          _active={{
+            transform: "scale(0.98)",
+          }}
+        >
+          {label}
+        </Box>
+      </Tooltip.Trigger>
+      <Tooltip.Positioner>
+        <Tooltip.Content
+          bg="gray.800"
+          color="white"
+          px={2}
+          py={1}
+          borderRadius="md"
+          fontSize="xs"
+        >
+          {shortcut}
+        </Tooltip.Content>
+      </Tooltip.Positioner>
+    </Tooltip.Root>
+  );
+}
+
+type IconButtonProps = {
+  label: string;
+  tooltip: string;
+  onClick: () => void;
+};
+
+function IconButton(props: IconButtonProps) {
+  const { label, tooltip, onClick } = props;
+
+  return (
+    <Tooltip.Root positioning={{ placement: "bottom" }}>
+      <Tooltip.Trigger asChild>
+        <Box
+          as="button"
+          onClick={onClick}
+          bg="white"
+          color="gray.700"
+          px={2}
+          py={1}
+          borderRadius="4px"
+          fontSize="md"
+          fontWeight="medium"
+          cursor="pointer"
+          userSelect="none"
+          transition="all 0.15s ease"
+          border="1px solid"
+          borderColor="gray.200"
+          minWidth="28px"
+          _hover={{
+            bg: "gray.50",
+            borderColor: "gray.300",
+            color: "gray.900",
+          }}
+          _active={{
+            transform: "scale(0.98)",
+            bg: "gray.100",
+          }}
+        >
+          {label}
+        </Box>
+      </Tooltip.Trigger>
+      <Tooltip.Positioner>
+        <Tooltip.Content
+          bg="gray.800"
+          color="white"
+          px={2}
+          py={1}
+          borderRadius="md"
+          fontSize="xs"
+        >
+          {tooltip}
+        </Tooltip.Content>
+      </Tooltip.Positioner>
+    </Tooltip.Root>
   );
 }

@@ -122,18 +122,17 @@ export class LeadSheetModel {
       )
     );
 
-    // Accidentals: # and b keys toggle accidental on left note when no pending
-    // or set pending accidental for next note
+    // Accidentals: ] for sharp, [ for flat (avoids conflict with b note)
     this.unregisterShortcuts.push(
       registerKeyboardShortcut(
-        ["shift", "digit3"],
-        gated(() => this.toggleAccidentalOnLeftNote("#"))
+        ["bracketright"],
+        gated(() => this.toggleAccidentalSelectionOrLeftNote("#"))
       )
     );
     this.unregisterShortcuts.push(
       registerKeyboardShortcut(
-        ["b"],
-        gated(() => this.toggleAccidentalOnLeftNote("b"))
+        ["bracketleft"],
+        gated(() => this.toggleAccidentalSelectionOrLeftNote("b"))
       )
     );
 
@@ -251,6 +250,10 @@ export class LeadSheetModel {
       "6": "1/16",
     };
     this.currentDuration.set(durationMap[key]);
+  }
+
+  setCurrentDuration(duration: Duration) {
+    this.currentDuration.set(duration);
   }
 
   // Accidentals
@@ -691,6 +694,63 @@ export class LeadSheetModel {
 
     this.events.set(newEvents);
     this.cleanupInvalidTies();
+  }
+
+  // Toggle accidental on selected notes or note left of caret, or set pending
+  toggleAccidentalSelectionOrLeftNote(accidental: "#" | "b") {
+    const selectedIndices = this.getSelectedNoteIndices();
+
+    // If we have a selection, apply to selected notes
+    if (selectedIndices.length > 0) {
+      const events = this.events.get();
+      const newEvents = [...events];
+      let modified = false;
+
+      for (const idx of selectedIndices) {
+        const event = newEvents[idx];
+        if (event && event.kind === "note") {
+          const currentAccidental = event.pitch.accidental;
+          const newAccidental =
+            currentAccidental === accidental ? null : accidental;
+          newEvents[idx] = {
+            ...event,
+            pitch: { ...event.pitch, accidental: newAccidental },
+          };
+          modified = true;
+        }
+      }
+
+      if (modified) {
+        this.events.set(newEvents);
+        this.cleanupInvalidTies();
+      }
+      return;
+    }
+
+    // No selection: try to apply to note left of caret
+    const leftIdx = this.findNoteLeftOfCaret();
+    if (leftIdx !== null) {
+      const events = this.events.get();
+      const event = events[leftIdx];
+      if (event && event.kind === "note") {
+        const newEvents = [...events];
+        const currentAccidental = event.pitch.accidental;
+        const newAccidental =
+          currentAccidental === accidental ? null : accidental;
+
+        newEvents[leftIdx] = {
+          ...event,
+          pitch: { ...event.pitch, accidental: newAccidental },
+        };
+
+        this.events.set(newEvents);
+        this.cleanupInvalidTies();
+        return;
+      }
+    }
+
+    // No selection and no note left of caret: set as pending accidental
+    this.setPendingAccidental(accidental);
   }
 
   // Toggle tie between note left and right of caret

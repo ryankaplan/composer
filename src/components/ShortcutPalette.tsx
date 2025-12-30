@@ -5,50 +5,49 @@ export function ShortcutPalette() {
   const shortcuts = [
     { keys: "A-G", description: "Insert note" },
     { keys: "R", description: "Insert rest" },
-    {
-      keys: "4 / 8 / 6",
-      description: "Set duration (quarter / eighth / sixteenth)",
-    },
-    { keys: "Shift+3 / B", description: "Toggle sharp / flat on left note" },
-    { keys: "N", description: "Naturalize (remove accidental)" },
     { keys: "← →", description: "Move caret" },
     { keys: "Shift+← →", description: "Move caret with selection" },
     { keys: "↑ ↓", description: "Transpose by octave" },
-    { keys: "Ctrl+↑ ↓", description: "Transpose by semitone" },
-    { keys: "T", description: "Toggle tie" },
+    { keys: "⌘+↑ ↓", description: "Transpose by semitone" },
     { keys: "-", description: "Extend note (tie + insert)" },
-    { keys: "Backspace / Delete", description: "Remove notes" },
+    { keys: "⌫ / ⌦", description: "Remove notes" },
     { keys: 'Shift+"', description: "Enter chord mode" },
   ];
 
   return (
     <Box
-      bg="gray.50"
+      bg="white"
       borderTop="1px solid"
-      borderColor="gray.300"
-      px={4}
+      borderColor="gray.200"
+      px={3}
       py={2}
-      maxHeight="140px"
+      maxHeight="120px"
       overflowY="auto"
+      boxShadow="0 -1px 3px rgba(0, 0, 0, 0.04)"
     >
-      <Flex gap={4} flexWrap="wrap" fontSize="sm">
+      <Flex gap={3} flexWrap="wrap" fontSize="xs">
         {shortcuts.map((shortcut, index) => (
-          <Box key={index} display="flex" gap={2}>
+          <Flex key={index} alignItems="center" gap={1.5}>
             <Box
               as="kbd"
-              fontFamily="monospace"
-              bg="white"
-              px={2}
-              py={1}
-              borderRadius="sm"
+              fontFamily="system-ui, -apple-system"
+              bg="gray.50"
+              px={1.5}
+              py={0.5}
+              borderRadius="4px"
               border="1px solid"
-              borderColor="gray.300"
+              borderColor="gray.200"
               fontSize="xs"
+              fontWeight="medium"
+              color="gray.700"
+              whiteSpace="nowrap"
             >
               {shortcut.keys}
             </Box>
-            <Box color="gray.700">{shortcut.description}</Box>
-          </Box>
+            <Box color="gray.600" fontSize="xs">
+              {shortcut.description}
+            </Box>
+          </Flex>
         ))}
       </Flex>
     </Box>

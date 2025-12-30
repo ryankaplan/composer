@@ -7,7 +7,13 @@ import { ShortcutPalette } from "./components/ShortcutPalette";
 export function App() {
   return (
     <ChakraProvider value={defaultSystem}>
-      <Flex direction="column" height="100vh" width="100vw" overflow="hidden">
+      <Flex
+        direction="column"
+        height="100vh"
+        width="100vw"
+        overflow="hidden"
+        bg="gray.50"
+      >
         {/* Top toolbar */}
         <Toolbar />
 
