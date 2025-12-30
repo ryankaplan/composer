@@ -15,12 +15,13 @@
     "@emotion/styled": "11.14.1",
     "framer-motion": "12.23.26",
     "react": "19.2.3",
-    "react-dom": "19.2.3"
+    "react-dom": "19.2.3",
+    "vexflow": "5.0.0"
   },
   "devDependencies": {
     "@types/react": "19.2.7",
     "@types/react-dom": "19.2.3",
     "esbuild": "0.27.2",
-    "typescript": "5.9.3"
+    "typescript": "5.9.3",
   }
 }
