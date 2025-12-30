@@ -1,0 +1,18 @@
+packages:
+  - "."
+  - "native"
+
+# 7 days minimum release age
+#
+# This is in place to avoid
+# downloading compromised packages which will (hopefully) be quickly identified
+# and removed
+#
+# To override this, use minimumReleaseAgeExclude
+minimumReleaseAge: 10080
+
+onlyBuiltDependencies:
+  - electron
+  - electron-winstaller
+  - phantomjs-prebuilt
+

@@ -1,0 +1,26 @@
+{
+  "name": "composer",
+  "private": true,
+  "version": "0.0.0",
+  "type": "module",
+  "scripts": {
+    "build": "esbuild src/main.tsx --bundle --format=esm --platform=browser --target=es2020 --sourcemap --outfile=public/dist/bundle.js --tsconfig=tsconfig.json",
+    "dev": "esbuild src/main.tsx --bundle --format=esm --platform=browser --target=es2020 --sourcemap --outfile=public/dist/bundle.js --tsconfig=tsconfig.json --servedir=public --serve=5173 --watch",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "clean": "rm -rf public/dist"
+  },
+  "dependencies": {
+    "@chakra-ui/react": "3.30.0",
+    "@emotion/react": "11.14.0",
+    "@emotion/styled": "11.14.1",
+    "framer-motion": "12.23.26",
+    "react": "19.2.3",
+    "react-dom": "19.2.3"
+  },
+  "devDependencies": {
+    "@types/react": "19.2.7",
+    "@types/react-dom": "19.2.3",
+    "esbuild": "0.27.2",
+    "typescript": "5.9.3"
+  }
+}
