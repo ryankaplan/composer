@@ -1,17 +1,24 @@
-import React, { useMemo } from "react";
-import { ChakraProvider, defaultSystem, Box, Heading } from "@chakra-ui/react";
+import React from "react";
+import { ChakraProvider, defaultSystem, Flex } from "@chakra-ui/react";
 import { LeadSheetEditor } from "./components/LeadSheetEditor";
-import { LeadSheetModel } from "./lead-sheet/LeadSheetModel";
+import { Toolbar } from "./components/Toolbar";
+import { ShortcutPalette } from "./components/ShortcutPalette";
 
 export function App() {
   return (
     <ChakraProvider value={defaultSystem}>
-      <Box p={8} maxW="1200px" mx="auto">
-        <Heading mb={6} size="lg">
-          Lead Sheet Editor
-        </Heading>
-        <LeadSheetEditor />
-      </Box>
+      <Flex direction="column" height="100vh" width="100vw" overflow="hidden">
+        {/* Top toolbar */}
+        <Toolbar />
+
+        {/* Middle: Editor area (takes remaining space) */}
+        <Flex flex="1" overflow="hidden">
+          <LeadSheetEditor />
+        </Flex>
+
+        {/* Bottom: Shortcut palette */}
+        <ShortcutPalette />
+      </Flex>
     </ChakraProvider>
   );
 }

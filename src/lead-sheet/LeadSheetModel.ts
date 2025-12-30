@@ -75,10 +75,9 @@ export class LeadSheetModel {
   }
 
   private registerShortcuts() {
-    // Helper to gate shortcuts by focus and chord mode
+    // Helper to gate shortcuts by chord mode (no longer gate by focus)
     const gated = (callback: () => void) => {
       return () => {
-        if (!this.hasFocus.get()) return;
         if (this.chordMode.get() !== null) return;
         callback();
       };
@@ -173,6 +172,14 @@ export class LeadSheetModel {
       registerKeyboardShortcut(
         ["delete"],
         gated(() => this.deleteForward())
+      )
+    );
+
+    // Chord mode entry (quote key)
+    this.unregisterShortcuts.push(
+      registerKeyboardShortcut(
+        ["shift", "quote"],
+        gated(() => this.enterChordMode())
       )
     );
   }

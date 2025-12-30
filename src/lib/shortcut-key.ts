@@ -55,6 +55,7 @@ export type ShortcutKey =
   | "bracketleft"
   | "bracketright"
   | "backquote"
+  | "quote"
   | "slash"
   | "backslash"
   | "equal"

@@ -5,6 +5,7 @@ import { LeadSheetModel, model } from "../lead-sheet/LeadSheetModel";
 import { renderLeadSheet } from "../lead-sheet/vexflow-render";
 
 export function LeadSheetEditor() {
+  const viewportRef = useRef<HTMLDivElement>(null);
   const shadowHostRef = useRef<HTMLDivElement>(null);
   const shadowRenderContainerRef = useRef<HTMLDivElement | null>(null);
   const editorRef = useRef<HTMLDivElement>(null);
@@ -17,8 +18,6 @@ export function LeadSheetEditor() {
   const caret = useObservable(model.caret);
   const normalizedSelection = useObservable(model.normalizedSelection);
   const chordMode = useObservable(model.chordMode);
-  const currentDuration = useObservable(model.currentDuration);
-  const pendingAccidental = useObservable(model.pendingAccidental);
   const hasFocus = useObservable(model.hasFocus);
 
   const [containerSize, setContainerSize] = useState({
@@ -45,14 +44,14 @@ export function LeadSheetEditor() {
     if (!container) {
       container = document.createElement("div");
       container.style.width = "100%";
-      container.style.minHeight = "400px";
+      container.style.height = "100%";
       container.style.position = "relative";
 
       // Optional: set a base font size for any non-music text VexFlow may emit.
       // This does not affect SMuFL glyphs which have explicit font-size attributes.
       const style = document.createElement("style");
       style.textContent = `
-        :host { display: block; }
+        :host { display: block; width: 100%; height: 100%; }
       `;
 
       shadowRoot.appendChild(style);
@@ -63,9 +62,9 @@ export function LeadSheetEditor() {
     setShadowReady(true);
   }, []);
 
-  // Handle container resize
+  // Handle container resize - observe the viewport wrapper (stable size)
   useEffect(() => {
-    if (!shadowHostRef.current) return;
+    if (!viewportRef.current) return;
 
     const observer = new ResizeObserver((entries) => {
       for (const entry of entries) {
@@ -76,7 +75,7 @@ export function LeadSheetEditor() {
       }
     });
 
-    observer.observe(shadowHostRef.current);
+    observer.observe(viewportRef.current);
     return () => observer.disconnect();
   }, []);
 
@@ -121,15 +120,6 @@ export function LeadSheetEditor() {
     model.setHasFocus(false);
   }
 
-  // Handle keydown for quote key (chord mode entry)
-  function handleEditorKeyDown(e: React.KeyboardEvent) {
-    // Check if quote key (") was pressed
-    if (e.key === '"' && !model.chordMode.get()) {
-      e.preventDefault();
-      model.enterChordMode();
-    }
-  }
-
   // Handle chord input changes
   function handleChordInputChange(e: React.ChangeEvent<HTMLInputElement>) {
     model.setChordDraft(e.target.value);
@@ -146,55 +136,14 @@ export function LeadSheetEditor() {
     }
   }
 
-  // Handle time signature change
-  function handleTimeSignatureChange(e: React.ChangeEvent<HTMLSelectElement>) {
-    const beatsPerBar = parseInt(e.target.value) as 3 | 4;
-    model.setTimeSignature({ beatsPerBar, beatUnit: 4 });
-  }
-
   return (
-    <Box>
-      {/* Controls */}
-      <Box mb={4} display="flex" gap={4} alignItems="center" flexWrap="wrap">
-        <Box>
-          <label htmlFor="time-sig">Time Signature: </label>
-          <select
-            id="time-sig"
-            value={timeSignature.beatsPerBar}
-            onChange={handleTimeSignatureChange}
-            style={{
-              padding: "4px 8px",
-              borderRadius: "4px",
-              border: "1px solid #ccc",
-            }}
-          >
-            <option value="3">3/4</option>
-            <option value="4">4/4</option>
-          </select>
-        </Box>
-        <Box>
-          Current Duration: <strong>{currentDuration}</strong>
-        </Box>
-        {pendingAccidental && (
-          <Box color="blue.600">
-            Pending Accidental: <strong>{pendingAccidental}</strong>
-          </Box>
-        )}
-        <Box>
-          Caret: {caret} / {events.length}
-        </Box>
-        <Box color={hasFocus ? "green.600" : "gray.500"}>
-          {hasFocus ? "Focused ✓" : "Click to focus"}
-        </Box>
-      </Box>
-
-      {/* Editor surface (focusable) */}
+    <Box width="100%" height="100%" position="relative">
+      {/* Editor surface (focusable) - viewport wrapper with stable size */}
       <Box
         ref={editorRef}
         tabIndex={0}
         onFocus={handleEditorFocus}
         onBlur={handleEditorBlur}
-        onKeyDown={handleEditorKeyDown}
         border="2px solid"
         borderColor={hasFocus ? "blue.500" : "gray.300"}
         borderRadius="md"
@@ -203,37 +152,49 @@ export function LeadSheetEditor() {
         outline="none"
         bg={hasFocus ? "blue.50" : "white"}
         cursor={hasFocus ? "default" : "pointer"}
+        height="100%"
         _focusVisible={{
           borderColor: "blue.500",
           boxShadow: "0 0 0 1px var(--chakra-colors-blue-500)",
         }}
       >
-        {events.length === 0 && (
-          <Box
-            position="absolute"
-            top="50%"
-            left="50%"
-            transform="translate(-50%, -50%)"
-            textAlign="center"
-            color="gray.500"
-            pointerEvents="none"
-          >
-            <Box fontSize="lg" mb={2}>
-              Click here and start typing notes (A-G)
-            </Box>
-            <Box fontSize="sm">Press 4, 8, or 6 to change duration first</Box>
-          </Box>
-        )}
-
-        {/* VexFlow container (ShadowRoot host) */}
+        {/* Viewport wrapper - this is what we observe for resize */}
         <div
-          ref={shadowHostRef}
+          ref={viewportRef}
           style={{
             width: "100%",
-            minHeight: "400px",
+            height: "100%",
             position: "relative",
+            minHeight: "400px",
           }}
-        />
+        >
+          {events.length === 0 && (
+            <Box
+              position="absolute"
+              top="50%"
+              left="50%"
+              transform="translate(-50%, -50%)"
+              textAlign="center"
+              color="gray.500"
+              pointerEvents="none"
+            >
+              <Box fontSize="lg" mb={2}>
+                Start typing notes (A-G)
+              </Box>
+              <Box fontSize="sm">Press 4, 8, or 6 to change duration first</Box>
+            </Box>
+          )}
+
+          {/* VexFlow container (ShadowRoot host) */}
+          <div
+            ref={shadowHostRef}
+            style={{
+              width: "100%",
+              height: "100%",
+              position: "relative",
+            }}
+          />
+        </div>
 
         {/* Chord input overlay */}
         {chordMode && (
@@ -258,20 +219,6 @@ export function LeadSheetEditor() {
             />
           </Box>
         )}
-      </Box>
-
-      {/* Instructions */}
-      <Box mt={4} fontSize="sm" color="gray.600">
-        <strong>Instructions:</strong>
-        <ul>
-          <li>A-G: Insert note</li>
-          <li>R: Insert rest</li>
-          <li>4/8/6: Set duration (quarter/eighth/sixteenth)</li>
-          <li>Shift+3: Sharp (#), Minus: Flat (♭)</li>
-          <li>Arrow keys: Move caret (Shift to select)</li>
-          <li>Backspace/Delete: Remove notes</li>
-          <li>" (quote): Enter chord mode</li>
-        </ul>
       </Box>
     </Box>
   );
