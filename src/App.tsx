@@ -1,9 +1,9 @@
 import React from "react";
-import { ChakraProvider } from "@chakra-ui/react";
+import { ChakraProvider, defaultSystem } from "@chakra-ui/react";
 
 export function App() {
   return (
-    <ChakraProvider>
+    <ChakraProvider value={defaultSystem}>
       <div>Hello World</div>
     </ChakraProvider>
   );
