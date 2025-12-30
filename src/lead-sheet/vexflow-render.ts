@@ -6,6 +6,7 @@ import {
   Voice,
   Accidental as VexAccidental,
   BarlineType,
+  ChordSymbol,
 } from "vexflow/bravura";
 import { MelodyEvent, Measure, TimeSignature, Accidental } from "./types";
 
@@ -18,6 +19,7 @@ export type RenderOptions = {
   selection: { start: number; end: number } | null;
   width: number;
   height: number;
+  showCaret: boolean;
 };
 
 // Convert duration to VexFlow duration string
@@ -52,7 +54,17 @@ const SYSTEM_PADDING_X = 20;
 const INTER_MEASURE_GAP = 0;
 
 export function renderLeadSheet(options: RenderOptions) {
-  const { container, events, measures, timeSignature, width, height } = options;
+  const {
+    container,
+    events,
+    measures,
+    timeSignature,
+    width,
+    height,
+    caret,
+    selection,
+    showCaret,
+  } = options;
 
   // Clear container
   container.innerHTML = "";
@@ -74,17 +86,42 @@ export function renderLeadSheet(options: RenderOptions) {
     (svgEl as SVGSVGElement).style.fontFamily = "Bravura, Academico";
   }
 
-  renderMeasures(context, events, measures, timeSignature, width, height);
+  renderMeasures(
+    context,
+    svgEl,
+    events,
+    measures,
+    timeSignature,
+    width,
+    height,
+    caret,
+    selection,
+    showCaret
+  );
 }
+
+// Bounding box for a rendered note/rest
+type NoteBBox = {
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+};
 
 function renderMeasures(
   context: any,
+  svgEl: Element | null,
   events: MelodyEvent[],
   measures: Measure[],
   timeSignature: TimeSignature,
   width: number,
-  height: number
+  height: number,
+  caret: number,
+  selection: { start: number; end: number } | null,
+  showCaret: boolean
 ) {
+  // Map global event index to its bounding box after rendering
+  const eventBBoxes = new Map<number, NoteBBox>();
   // Calculate how many measures fit per system
   const availableWidth = Math.max(0, width - SYSTEM_PADDING_X * 2);
   const measuresPerSystem = Math.max(
@@ -155,9 +192,16 @@ function renderMeasures(
 
       stave.setContext(context).draw();
 
-      // Convert events to VexFlow notes
+      // Convert events to VexFlow notes and track event indices
       const vexNotes: StaveNote[] = [];
-      for (const event of measureEvents) {
+      const noteToEventIdx: Map<StaveNote, number> = new Map();
+      const chordAnchors: Array<{ globalIdx: number; chord: string }> = [];
+
+      for (let localIdx = 0; localIdx < measureEvents.length; localIdx++) {
+        const event = measureEvents[localIdx];
+        if (!event) continue;
+        const globalIdx = measure.startEventIdx + localIdx;
+
         if (event.kind === "note") {
           const vexDuration = durationToVexFlow(event.duration);
           const vexKey = pitchToVexFlowKey(
@@ -179,10 +223,16 @@ function renderMeasures(
             note.addModifier(new VexAccidental("b"), 0);
           }
 
-          // TODO: Add chord symbol above note if present
-          // This would require using VexFlow's TextNote or custom SVG
+          // Add chord symbol above note if present
+          if (event.chord) {
+            const chordSymbol = new ChordSymbol()
+              .addText(event.chord)
+              .setFont("Arial", 12);
+            note.addModifier(chordSymbol, 0);
+          }
 
           vexNotes.push(note);
+          noteToEventIdx.set(note, globalIdx);
         } else if (event.kind === "rest") {
           const vexDuration = durationToVexFlow(event.duration);
           const rest = new StaveNote({
@@ -191,8 +241,11 @@ function renderMeasures(
             clef: "treble",
           });
           vexNotes.push(rest);
+          noteToEventIdx.set(rest, globalIdx);
+        } else if (event.kind === "chordAnchor") {
+          // Chord anchors don't render as notes, but we need to render their chord text
+          chordAnchors.push({ globalIdx, chord: event.chord });
         }
-        // Note: chordAnchor events are not rendered as notes (they have no duration)
       }
 
       // Only render notes if there are any
@@ -215,9 +268,30 @@ function renderMeasures(
 
           // Draw the voice
           voice.draw(context, stave);
+
+          // After drawing, capture bounding boxes for each note/rest
+          for (const note of vexNotes) {
+            const eventIdx = noteToEventIdx.get(note);
+            if (eventIdx === undefined) continue;
+
+            const bbox = note.getBoundingBox();
+            if (bbox) {
+              eventBBoxes.set(eventIdx, {
+                x: bbox.x,
+                y: bbox.y,
+                width: bbox.w,
+                height: bbox.h,
+              });
+            }
+          }
         } catch (error) {
           console.error("Error rendering measure notes:", error);
         }
+      }
+
+      // Render standalone chord anchors (chords without notes)
+      if (chordAnchors.length > 0 && svgEl) {
+        renderChordAnchors(svgEl, chordAnchors, stave, eventBBoxes);
       }
 
       xOffset += MEASURE_WIDTH + INTER_MEASURE_GAP;
@@ -226,7 +300,141 @@ function renderMeasures(
     yOffset += STAVE_HEIGHT + STAVE_MARGIN;
   }
 
-  // TODO: Render caret overlay
-  // TODO: Render selection overlay
-  // TODO: Render chord symbols
+  // Render selection + caret overlays and hitboxes
+  if (svgEl) {
+    renderOverlays(
+      svgEl,
+      eventBBoxes,
+      caret,
+      selection,
+      showCaret,
+      events.length
+    );
+  }
+}
+
+// Render standalone chord anchors as text on the staff
+function renderChordAnchors(
+  svgEl: Element,
+  chordAnchors: Array<{ globalIdx: number; chord: string }>,
+  stave: Stave,
+  eventBBoxes: Map<number, NoteBBox>
+) {
+  const NS = "http://www.w3.org/2000/svg";
+
+  for (const anchor of chordAnchors) {
+    // Position chord anchor to match VexFlow's chord symbol style
+    // Place it at the staff's note area, above the staff like regular chord symbols
+    const x = stave.getNoteStartX();
+    const y = stave.getYForLine(0) - 30; // Above the staff, matching ChordSymbol position
+
+    const text = document.createElementNS(NS, "text");
+    text.setAttribute("x", String(x));
+    text.setAttribute("y", String(y));
+    text.setAttribute("font-family", "Arial, sans-serif");
+    text.setAttribute("font-size", "12");
+    text.setAttribute("font-weight", "normal"); // Regular weight like ChordSymbol
+    text.setAttribute("fill", "black");
+    text.textContent = anchor.chord;
+    svgEl.appendChild(text);
+
+    // Create a bounding box for the chord anchor so it can be clicked
+    const bbox = text.getBBox();
+    eventBBoxes.set(anchor.globalIdx, {
+      x: bbox.x,
+      y: bbox.y,
+      width: bbox.width,
+      height: bbox.height,
+    });
+  }
+}
+
+// Render selection highlight, caret, and clickable hitboxes
+function renderOverlays(
+  svgEl: Element,
+  eventBBoxes: Map<number, NoteBBox>,
+  caret: number,
+  selection: { start: number; end: number } | null,
+  showCaret: boolean,
+  totalEvents: number
+) {
+  const NS = "http://www.w3.org/2000/svg";
+
+  // Create an overlay group
+  const overlayGroup = document.createElementNS(NS, "g");
+  overlayGroup.setAttribute("id", "cursor-selection-overlay");
+  svgEl.appendChild(overlayGroup);
+
+  // 1) Render selection highlights
+  if (selection) {
+    for (let i = selection.start; i < selection.end; i++) {
+      const bbox = eventBBoxes.get(i);
+      if (!bbox) continue;
+
+      const rect = document.createElementNS(NS, "rect");
+      rect.setAttribute("x", String(bbox.x));
+      rect.setAttribute("y", String(bbox.y));
+      rect.setAttribute("width", String(bbox.width));
+      rect.setAttribute("height", String(bbox.height));
+      rect.setAttribute("fill", "rgba(59, 130, 246, 0.2)"); // blue.500 with opacity
+      rect.setAttribute("stroke", "rgba(59, 130, 246, 0.5)");
+      rect.setAttribute("stroke-width", "1");
+      rect.setAttribute("pointer-events", "none");
+      overlayGroup.appendChild(rect);
+    }
+  }
+
+  // 2) Render caret (insertion cursor)
+  if (showCaret) {
+    let caretX: number | null = null;
+    let caretY = 0;
+    let caretHeight = STAVE_HEIGHT;
+
+    // Find the bbox of the event at or after the caret position
+    const nextEventBBox = eventBBoxes.get(caret);
+    if (nextEventBBox) {
+      // Place caret at the left edge of the next event
+      caretX = nextEventBBox.x;
+      caretY = nextEventBBox.y;
+      caretHeight = nextEventBBox.height;
+    } else if (caret > 0) {
+      // Place caret at the right edge of the last event
+      const prevEventBBox = eventBBoxes.get(caret - 1);
+      if (prevEventBBox) {
+        caretX = prevEventBBox.x + prevEventBBox.width;
+        caretY = prevEventBBox.y;
+        caretHeight = prevEventBBox.height;
+      }
+    } else if (caret === 0 && totalEvents === 0) {
+      // Empty document: place caret at a reasonable default position
+      caretX = SYSTEM_PADDING_X + 60; // After clef/time signature
+      caretY = STAVE_MARGIN;
+      caretHeight = STAVE_HEIGHT;
+    }
+
+    if (caretX !== null) {
+      const line = document.createElementNS(NS, "line");
+      line.setAttribute("x1", String(caretX));
+      line.setAttribute("y1", String(caretY));
+      line.setAttribute("x2", String(caretX));
+      line.setAttribute("y2", String(caretY + caretHeight));
+      line.setAttribute("stroke", "rgb(59, 130, 246)"); // blue.500
+      line.setAttribute("stroke-width", "2");
+      line.setAttribute("pointer-events", "none");
+      overlayGroup.appendChild(line);
+    }
+  }
+
+  // 3) Add transparent hitboxes for each rendered event
+  for (const [eventIdx, bbox] of eventBBoxes.entries()) {
+    const hitbox = document.createElementNS(NS, "rect");
+    hitbox.setAttribute("x", String(bbox.x));
+    hitbox.setAttribute("y", String(bbox.y));
+    hitbox.setAttribute("width", String(bbox.width));
+    hitbox.setAttribute("height", String(bbox.height));
+    hitbox.setAttribute("fill", "transparent");
+    hitbox.setAttribute("cursor", "pointer");
+    hitbox.setAttribute("data-event-idx", String(eventIdx));
+    overlayGroup.appendChild(hitbox);
+  }
 }

@@ -93,6 +93,7 @@ export function LeadSheetEditor() {
       selection: normalizedSelection,
       width: containerSize.width,
       height: containerSize.height,
+      showCaret: hasFocus && chordMode === null,
     });
   }, [
     events,
@@ -102,6 +103,8 @@ export function LeadSheetEditor() {
     normalizedSelection,
     containerSize,
     shadowReady,
+    hasFocus,
+    chordMode,
   ]);
 
   // Focus chord input when chord mode opens
@@ -110,6 +113,41 @@ export function LeadSheetEditor() {
       chordInputRef.current.focus();
     }
   }, [chordMode]);
+
+  // Handle clicks on rendered notes/rests in the shadow DOM
+  useEffect(() => {
+    const host = shadowHostRef.current;
+    if (!host || !host.shadowRoot) return;
+
+    function handleClick(e: Event) {
+      // Use composedPath to traverse through shadow DOM
+      const path = e.composedPath();
+      for (const element of path) {
+        if (element instanceof Element) {
+          const eventIdxAttr = element.getAttribute("data-event-idx");
+          if (eventIdxAttr !== null) {
+            const eventIdx = parseInt(eventIdxAttr, 10);
+            if (!isNaN(eventIdx)) {
+              model.selectSingleEvent(eventIdx);
+              // Focus the editor so keyboard shortcuts work
+              editorRef.current?.focus();
+              e.stopPropagation();
+              return;
+            }
+          }
+        }
+      }
+      // If we clicked empty space, just clear selection
+      model.clearSelection();
+    }
+
+    const shadowRoot = host.shadowRoot;
+    shadowRoot.addEventListener("click", handleClick);
+
+    return () => {
+      shadowRoot.removeEventListener("click", handleClick);
+    };
+  }, []);
 
   // Handle focus/blur for editor surface
   function handleEditorFocus() {
@@ -144,9 +182,6 @@ export function LeadSheetEditor() {
         tabIndex={0}
         onFocus={handleEditorFocus}
         onBlur={handleEditorBlur}
-        border="2px solid"
-        borderColor={hasFocus ? "blue.500" : "gray.300"}
-        borderRadius="md"
         p={4}
         position="relative"
         outline="none"

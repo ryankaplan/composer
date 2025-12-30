@@ -256,6 +256,25 @@ export class LeadSheetModel {
     this.selection.set(null);
   }
 
+  // Set caret position (clamps to valid range) and clear selection
+  setCaret(newCaret: number) {
+    const events = this.events.get();
+    const clampedCaret = Math.max(0, Math.min(newCaret, events.length));
+    this.caret.set(clampedCaret);
+    this.selection.set(null);
+  }
+
+  // Select a single event by clicking it - moves caret after the event
+  selectSingleEvent(eventIdx: number) {
+    const events = this.events.get();
+    if (eventIdx < 0 || eventIdx >= events.length) return;
+
+    // Set selection to span just this event
+    this.selection.set({ anchor: eventIdx, focus: eventIdx + 1 });
+    // Move caret to after the clicked event
+    this.caret.set(eventIdx + 1);
+  }
+
   // Insert note using nearest-octave rule
   insertNote(letter: PitchLetter) {
     const accidental = this.pendingAccidental.get();
