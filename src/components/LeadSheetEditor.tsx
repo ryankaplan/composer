@@ -1,6 +1,5 @@
 import React, { useRef, useEffect, useState } from "react";
 import { Box, Input } from "@chakra-ui/react";
-import VexFlow from "vexflow/bravura";
 import { useObservable } from "../lib/observable";
 import { LeadSheetModel, model } from "../lead-sheet/LeadSheetModel";
 import { renderLeadSheet } from "../lead-sheet/vexflow-render";
@@ -20,37 +19,6 @@ export function LeadSheetEditor() {
   const currentDuration = useObservable(model.currentDuration);
   const pendingAccidental = useObservable(model.pendingAccidental);
   const hasFocus = useObservable(model.hasFocus);
-
-  const [fontsLoaded, setFontsLoaded] = useState(false);
-
-  useEffect(() => {
-    // Ensure the SMuFL font is available before the first render.
-    // (VexFlow.loadFonts() would fetch from a CDN; we want the bundled bravura entry.)
-    let cancelled = false;
-
-    function markLoaded() {
-      if (cancelled) return;
-      setFontsLoaded(true);
-    }
-
-    if (typeof document === "undefined" || !document.fonts) {
-      markLoaded();
-      return () => {
-        cancelled = true;
-      };
-    }
-
-    Promise.all([
-      document.fonts.load("16px Bravura"),
-      document.fonts.load("16px Academico"),
-    ])
-      .then(markLoaded)
-      .catch(markLoaded);
-
-    return () => {
-      cancelled = true;
-    };
-  }, []);
 
   const [containerSize, setContainerSize] = useState({
     width: 800,
@@ -76,7 +44,7 @@ export function LeadSheetEditor() {
 
   // Render VexFlow notation whenever data changes
   useEffect(() => {
-    if (!containerRef.current || !fontsLoaded) return;
+    if (!containerRef.current) return;
 
     renderLeadSheet({
       container: containerRef.current,
@@ -95,7 +63,6 @@ export function LeadSheetEditor() {
     caret,
     normalizedSelection,
     containerSize,
-    fontsLoaded,
   ]);
 
   // Focus chord input when chord mode opens

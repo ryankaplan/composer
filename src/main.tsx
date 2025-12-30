@@ -1,9 +1,15 @@
 import { createRoot } from "react-dom/client";
 import { App } from "./App";
 import React from "react";
+import VexFlow from "vexflow/bravura";
 
-const container = document.getElementById("root");
-if (container) {
+async function runApp(): Promise<void> {
+  await VexFlow.loadFonts();
+  VexFlow.setFonts("Bravura", "Academico");
+
+  const container = document.getElementById("root");
+  if (!container) return;
+
   const root = createRoot(container);
   root.render(
     <React.StrictMode>
@@ -12,3 +18,4 @@ if (container) {
   );
 }
 
+window.addEventListener("DOMContentLoaded", runApp);
