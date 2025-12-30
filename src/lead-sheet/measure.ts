@@ -1,0 +1,128 @@
+import {
+  MelodyEvent,
+  TimeSignature,
+  Measure,
+  MeasureStatus,
+  durationToUnits,
+  getBarCapacity,
+} from "./types";
+
+// Compute measures from a flat event list and time signature
+export function computeMeasures(
+  events: MelodyEvent[],
+  timeSignature: TimeSignature
+): Measure[] {
+  const measures: Measure[] = [];
+  const capacityUnits = getBarCapacity(timeSignature);
+
+  let currentMeasureStartIdx = 0;
+  let currentFilledUnits = 0;
+
+  for (let i = 0; i < events.length; i++) {
+    const event = events[i]!;
+
+    // Chord anchors contribute 0 units
+    const eventUnits =
+      event.kind === "chordAnchor" ? 0 : durationToUnits(event.duration);
+
+    // Check if adding this event would exceed capacity
+    if (currentFilledUnits + eventUnits > capacityUnits) {
+      // Close current measure (it's overfull)
+      measures.push({
+        index: measures.length,
+        startEventIdx: currentMeasureStartIdx,
+        endEventIdx: i,
+        filledUnits: currentFilledUnits,
+        capacityUnits,
+        status:
+          currentFilledUnits < capacityUnits
+            ? "under"
+            : currentFilledUnits > capacityUnits
+            ? "over"
+            : "ok",
+      });
+
+      // Start new measure with this event
+      currentMeasureStartIdx = i;
+      currentFilledUnits = eventUnits;
+    } else {
+      currentFilledUnits += eventUnits;
+
+      // If we've exactly filled the measure, close it and start a new one
+      if (currentFilledUnits === capacityUnits) {
+        measures.push({
+          index: measures.length,
+          startEventIdx: currentMeasureStartIdx,
+          endEventIdx: i + 1,
+          filledUnits: currentFilledUnits,
+          capacityUnits,
+          status: "ok",
+        });
+
+        // Start new measure
+        currentMeasureStartIdx = i + 1;
+        currentFilledUnits = 0;
+      }
+    }
+  }
+
+  // Close the final measure if there are any remaining events
+  if (currentMeasureStartIdx < events.length || currentFilledUnits > 0) {
+    const status: MeasureStatus =
+      currentFilledUnits === capacityUnits
+        ? "ok"
+        : currentFilledUnits < capacityUnits
+        ? "under"
+        : "over";
+
+    measures.push({
+      index: measures.length,
+      startEventIdx: currentMeasureStartIdx,
+      endEventIdx: events.length,
+      filledUnits: currentFilledUnits,
+      capacityUnits,
+      status,
+    });
+  }
+
+  // If there are no events, create one empty measure
+  if (measures.length === 0) {
+    measures.push({
+      index: 0,
+      startEventIdx: 0,
+      endEventIdx: 0,
+      filledUnits: 0,
+      capacityUnits,
+      status: "under",
+    });
+  }
+
+  return measures;
+}
+
+// Normalize selection to start/end range
+export function normalizeSelection(
+  selection: { anchor: number; focus: number } | null
+): { start: number; end: number } | null {
+  if (!selection) {
+    return null;
+  }
+  return {
+    start: Math.min(selection.anchor, selection.focus),
+    end: Math.max(selection.anchor, selection.focus),
+  };
+}
+
+// Find the MIDI note of the previous note at or before the caret
+export function findPrevNoteMidi(
+  events: MelodyEvent[],
+  caret: number
+): number | null {
+  for (let i = caret - 1; i >= 0; i--) {
+    const event = events[i];
+    if (event && event.kind === "note") {
+      return event.pitch.midi;
+    }
+  }
+  return null;
+}
