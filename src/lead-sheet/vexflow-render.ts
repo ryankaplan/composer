@@ -5,6 +5,7 @@ import {
   Formatter,
   Voice,
   Accidental as VexAccidental,
+  BarlineType,
 } from "vexflow/bravura";
 import { MelodyEvent, Measure, TimeSignature, Accidental } from "./types";
 
@@ -48,7 +49,8 @@ function pitchToVexFlowKey(
 const STAVE_HEIGHT = 120;
 const STAVE_MARGIN = 10;
 const MEASURE_WIDTH = 200;
-const MEASURE_SPACING = 20;
+const SYSTEM_PADDING_X = 20;
+const INTER_MEASURE_GAP = 0;
 
 export function renderLeadSheet(options: RenderOptions) {
   const { container, events, measures, timeSignature, width, height } = options;
@@ -85,9 +87,10 @@ function renderMeasures(
   height: number
 ) {
   // Calculate how many measures fit per system
+  const availableWidth = Math.max(0, width - SYSTEM_PADDING_X * 2);
   const measuresPerSystem = Math.max(
     1,
-    Math.floor((width - MEASURE_SPACING) / (MEASURE_WIDTH + MEASURE_SPACING))
+    Math.floor(availableWidth / (MEASURE_WIDTH + INTER_MEASURE_GAP))
   );
 
   let yOffset = STAVE_MARGIN;
@@ -103,7 +106,7 @@ function renderMeasures(
       (systemIdx + 1) * measuresPerSystem
     );
 
-    let xOffset = MEASURE_SPACING;
+    let xOffset = SYSTEM_PADDING_X;
 
     // Render each measure in this system
     for (let i = 0; i < systemMeasures.length; i++) {
@@ -112,6 +115,12 @@ function renderMeasures(
 
       const isFirstMeasureInSystem = i === 0;
       const isFirstMeasureOverall = measure.index === 0;
+
+      // Get events for this measure
+      const measureEvents = events.slice(
+        measure.startEventIdx,
+        measure.endEventIdx
+      );
 
       // Create stave
       const stave = new Stave(xOffset, yOffset, MEASURE_WIDTH);
@@ -126,13 +135,12 @@ function renderMeasures(
         );
       }
 
-      stave.setContext(context).draw();
-
-      // Get events for this measure
-      const measureEvents = events.slice(
-        measure.startEventIdx,
-        measure.endEventIdx
-      );
+      // Visually connect measures within a system by butting staves together and
+      // suppressing the redundant left barline on subsequent measures. The end
+      // barline of the previous measure becomes the boundary barline.
+      if (!isFirstMeasureInSystem) {
+        stave.setBegBarType(BarlineType.NONE);
+      }
 
       // Draw invalid measure background (only if there are events)
       if (measureEvents.length > 0 && measure.status !== "ok") {
@@ -145,6 +153,8 @@ function renderMeasures(
         context.fillRect(xOffset, yOffset, MEASURE_WIDTH, STAVE_HEIGHT);
         context.restore();
       }
+
+      stave.setContext(context).draw();
 
       // Convert events to VexFlow notes
       const vexNotes: StaveNote[] = [];
@@ -199,7 +209,10 @@ function renderMeasures(
 
           const formatter = new Formatter();
           formatter.joinVoices([voice]);
-          formatter.format([voice], MEASURE_WIDTH - 20); // Leave some margin
+          const rightPadding = 10;
+          const formatWidth =
+            xOffset + MEASURE_WIDTH - stave.getNoteStartX() - rightPadding;
+          formatter.format([voice], Math.max(0, formatWidth));
 
           // Draw the voice
           voice.draw(context, stave);
@@ -208,7 +221,7 @@ function renderMeasures(
         }
       }
 
-      xOffset += MEASURE_WIDTH + MEASURE_SPACING;
+      xOffset += MEASURE_WIDTH + INTER_MEASURE_GAP;
     }
 
     yOffset += STAVE_HEIGHT + STAVE_MARGIN;
