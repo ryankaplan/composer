@@ -5,7 +5,8 @@ import { LeadSheetModel, model } from "../lead-sheet/LeadSheetModel";
 import { renderLeadSheet } from "../lead-sheet/vexflow-render";
 
 export function LeadSheetEditor() {
-  const containerRef = useRef<HTMLDivElement>(null);
+  const shadowHostRef = useRef<HTMLDivElement>(null);
+  const shadowRenderContainerRef = useRef<HTMLDivElement | null>(null);
   const editorRef = useRef<HTMLDivElement>(null);
   const chordInputRef = useRef<HTMLInputElement>(null);
 
@@ -25,9 +26,46 @@ export function LeadSheetEditor() {
     height: 600,
   });
 
+  const [shadowReady, setShadowReady] = useState(false);
+
+  // Isolate VexFlow SVG output from app CSS by rendering into a ShadowRoot.
+  useEffect(() => {
+    const host = shadowHostRef.current;
+    if (!host) return;
+
+    if (!host.shadowRoot) {
+      host.attachShadow({ mode: "open" });
+    }
+
+    const shadowRoot = host.shadowRoot;
+    if (!shadowRoot) return;
+
+    // Create (or reuse) the render container inside the shadow root.
+    let container = shadowRenderContainerRef.current;
+    if (!container) {
+      container = document.createElement("div");
+      container.style.width = "100%";
+      container.style.minHeight = "400px";
+      container.style.position = "relative";
+
+      // Optional: set a base font size for any non-music text VexFlow may emit.
+      // This does not affect SMuFL glyphs which have explicit font-size attributes.
+      const style = document.createElement("style");
+      style.textContent = `
+        :host { display: block; }
+      `;
+
+      shadowRoot.appendChild(style);
+      shadowRoot.appendChild(container);
+      shadowRenderContainerRef.current = container;
+    }
+
+    setShadowReady(true);
+  }, []);
+
   // Handle container resize
   useEffect(() => {
-    if (!containerRef.current) return;
+    if (!shadowHostRef.current) return;
 
     const observer = new ResizeObserver((entries) => {
       for (const entry of entries) {
@@ -38,16 +76,17 @@ export function LeadSheetEditor() {
       }
     });
 
-    observer.observe(containerRef.current);
+    observer.observe(shadowHostRef.current);
     return () => observer.disconnect();
   }, []);
 
   // Render VexFlow notation whenever data changes
   useEffect(() => {
-    if (!containerRef.current) return;
+    if (!shadowReady) return;
+    if (!shadowRenderContainerRef.current) return;
 
     renderLeadSheet({
-      container: containerRef.current,
+      container: shadowRenderContainerRef.current,
       events,
       measures,
       timeSignature,
@@ -63,6 +102,7 @@ export function LeadSheetEditor() {
     caret,
     normalizedSelection,
     containerSize,
+    shadowReady,
   ]);
 
   // Focus chord input when chord mode opens
@@ -185,9 +225,9 @@ export function LeadSheetEditor() {
           </Box>
         )}
 
-        {/* VexFlow container */}
+        {/* VexFlow container (ShadowRoot host) */}
         <div
-          ref={containerRef}
+          ref={shadowHostRef}
           style={{
             width: "100%",
             minHeight: "400px",
