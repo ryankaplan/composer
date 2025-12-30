@@ -27,10 +27,6 @@ export function Toolbar() {
       alignItems="center"
       flexWrap="wrap"
     >
-      <Box fontWeight="bold" fontSize="lg">
-        Lead Sheet Editor
-      </Box>
-
       <Box display="flex" alignItems="center" gap={2}>
         <label htmlFor="time-sig">Time:</label>
         <select
@@ -65,4 +61,3 @@ export function Toolbar() {
     </Flex>
   );
 }
-

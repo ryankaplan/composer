@@ -46,6 +46,7 @@ export type MelodyEvent =
       duration: Duration;
       pitch: Pitch;
       chord?: string;
+      tieToNext?: true;
     }
   | { kind: "rest"; id: string; duration: Duration }
   | { kind: "chordAnchor"; id: string; chord: string };
@@ -87,4 +88,75 @@ export function getBarCapacity(timeSignature: TimeSignature): number {
 let nextEventId = 1;
 export function generateEventId(): string {
   return `event-${nextEventId++}`;
+}
+
+// Convert MIDI note number to pitch with preferred spelling
+export function midiToPitch(
+  midi: number,
+  preferAccidental: "sharp" | "flat" | "natural" = "sharp"
+): Pitch {
+  const octave = Math.floor(midi / 12);
+  const chroma = midi % 12;
+
+  // Map chroma to letter + accidental
+  // Natural notes: C=0, D=2, E=4, F=5, G=7, A=9, B=11
+  // Black keys: C#/Db=1, D#/Eb=3, F#/Gb=6, G#/Ab=8, A#/Bb=10
+  const naturalNotes: Record<number, PitchLetter> = {
+    0: "C",
+    2: "D",
+    4: "E",
+    5: "F",
+    7: "G",
+    9: "A",
+    11: "B",
+  };
+
+  if (naturalNotes[chroma]) {
+    return {
+      letter: naturalNotes[chroma]!,
+      accidental: null,
+      octave,
+    };
+  }
+
+  // Black keys - choose spelling based on preference
+  if (preferAccidental === "flat") {
+    const flatSpellings: Record<
+      number,
+      { letter: PitchLetter; acc: Accidental }
+    > = {
+      1: { letter: "D", acc: "b" },
+      3: { letter: "E", acc: "b" },
+      6: { letter: "G", acc: "b" },
+      8: { letter: "A", acc: "b" },
+      10: { letter: "B", acc: "b" },
+    };
+    const spelling = flatSpellings[chroma]!;
+    return { letter: spelling.letter, accidental: spelling.acc, octave };
+  } else {
+    // Default to sharp
+    const sharpSpellings: Record<
+      number,
+      { letter: PitchLetter; acc: Accidental }
+    > = {
+      1: { letter: "C", acc: "#" },
+      3: { letter: "D", acc: "#" },
+      6: { letter: "F", acc: "#" },
+      8: { letter: "G", acc: "#" },
+      10: { letter: "A", acc: "#" },
+    };
+    const spelling = sharpSpellings[chroma]!;
+    return { letter: spelling.letter, accidental: spelling.acc, octave };
+  }
+}
+
+// Transpose a pitch by a number of semitones
+export function transposePitch(pitch: Pitch, semitones: number): Pitch {
+  const currentMidi = pitchToMidi(pitch);
+  const newMidi = currentMidi + semitones;
+
+  // Prefer the same accidental type if the original had one
+  const preferAccidental = pitch.accidental === "b" ? "flat" : "sharp";
+
+  return midiToPitch(newMidi, preferAccidental);
 }

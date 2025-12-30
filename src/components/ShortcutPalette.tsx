@@ -5,11 +5,18 @@ export function ShortcutPalette() {
   const shortcuts = [
     { keys: "A-G", description: "Insert note" },
     { keys: "R", description: "Insert rest" },
-    { keys: "4 / 8 / 6", description: "Set duration (quarter / eighth / sixteenth)" },
-    { keys: "Shift+3", description: "Sharp (#)" },
-    { keys: "-", description: "Flat (♭)" },
+    {
+      keys: "4 / 8 / 6",
+      description: "Set duration (quarter / eighth / sixteenth)",
+    },
+    { keys: "Shift+3 / B", description: "Toggle sharp / flat on left note" },
+    { keys: "N", description: "Naturalize (remove accidental)" },
     { keys: "← →", description: "Move caret" },
     { keys: "Shift+← →", description: "Move caret with selection" },
+    { keys: "↑ ↓", description: "Transpose by octave" },
+    { keys: "Ctrl+↑ ↓", description: "Transpose by semitone" },
+    { keys: "T", description: "Toggle tie" },
+    { keys: "-", description: "Extend note (tie + insert)" },
     { keys: "Backspace / Delete", description: "Remove notes" },
     { keys: 'Shift+"', description: "Enter chord mode" },
   ];
@@ -21,7 +28,7 @@ export function ShortcutPalette() {
       borderColor="gray.300"
       px={4}
       py={2}
-      maxHeight="120px"
+      maxHeight="140px"
       overflowY="auto"
     >
       <Flex gap={4} flexWrap="wrap" fontSize="sm">
@@ -47,4 +54,3 @@ export function ShortcutPalette() {
     </Box>
   );
 }
-

@@ -7,8 +7,15 @@ import {
   Accidental as VexAccidental,
   BarlineType,
   ChordSymbol,
+  StaveTie,
 } from "vexflow/bravura";
-import { MelodyEvent, Measure, TimeSignature, Accidental } from "./types";
+import {
+  MelodyEvent,
+  Measure,
+  TimeSignature,
+  Accidental,
+  pitchToMidi,
+} from "./types";
 
 export type RenderOptions = {
   container: HTMLElement;
@@ -122,6 +129,10 @@ function renderMeasures(
 ) {
   // Map global event index to its bounding box after rendering
   const eventBBoxes = new Map<number, NoteBBox>();
+  // Map global event index to rendered StaveNote for tie rendering
+  const eventToStaveNote = new Map<number, StaveNote>();
+  // Track ties to render after all notes are drawn
+  const tiesToRender: Array<{ fromIdx: number; toIdx: number }> = [];
   // Calculate how many measures fit per system
   const availableWidth = Math.max(0, width - SYSTEM_PADDING_X * 2);
   const measuresPerSystem = Math.max(
@@ -233,6 +244,7 @@ function renderMeasures(
 
           vexNotes.push(note);
           noteToEventIdx.set(note, globalIdx);
+          eventToStaveNote.set(globalIdx, note);
         } else if (event.kind === "rest") {
           const vexDuration = durationToVexFlow(event.duration);
           const rest = new StaveNote({
@@ -242,6 +254,7 @@ function renderMeasures(
           });
           vexNotes.push(rest);
           noteToEventIdx.set(rest, globalIdx);
+          eventToStaveNote.set(globalIdx, rest);
         } else if (event.kind === "chordAnchor") {
           // Chord anchors don't render as notes, but we need to render their chord text
           chordAnchors.push({ globalIdx, chord: event.chord });
@@ -269,7 +282,7 @@ function renderMeasures(
           // Draw the voice
           voice.draw(context, stave);
 
-          // After drawing, capture bounding boxes for each note/rest
+          // After drawing, capture bounding boxes and check for ties
           for (const note of vexNotes) {
             const eventIdx = noteToEventIdx.get(note);
             if (eventIdx === undefined) continue;
@@ -282,6 +295,35 @@ function renderMeasures(
                 width: bbox.w,
                 height: bbox.h,
               });
+            }
+
+            // Check if this event has a tie
+            const event = events[eventIdx];
+            if (event && event.kind === "note" && event.tieToNext) {
+              // Find next note (skip non-notes)
+              let nextNoteIdx = null;
+              for (let j = eventIdx + 1; j < events.length; j++) {
+                const nextEvent = events[j];
+                if (nextEvent && nextEvent.kind === "note") {
+                  nextNoteIdx = j;
+                  break;
+                }
+              }
+
+              // Validate tie: same MIDI
+              if (nextNoteIdx !== null) {
+                const nextNote = events[nextNoteIdx];
+                if (nextNote && nextNote.kind === "note") {
+                  const currentMidi = pitchToMidi(event.pitch);
+                  const nextMidi = pitchToMidi(nextNote.pitch);
+                  if (currentMidi === nextMidi) {
+                    tiesToRender.push({
+                      fromIdx: eventIdx,
+                      toIdx: nextNoteIdx,
+                    });
+                  }
+                }
+              }
             }
           }
         } catch (error) {
@@ -300,6 +342,9 @@ function renderMeasures(
     yOffset += STAVE_HEIGHT + STAVE_MARGIN;
   }
 
+  // Render ties
+  renderTies(context, tiesToRender, eventToStaveNote);
+
   // Render selection + caret overlays and hitboxes
   if (svgEl) {
     renderOverlays(
@@ -310,6 +355,32 @@ function renderMeasures(
       showCaret,
       events.length
     );
+  }
+}
+
+// Render ties between notes
+function renderTies(
+  context: any,
+  tiesToRender: Array<{ fromIdx: number; toIdx: number }>,
+  eventToStaveNote: Map<number, StaveNote>
+) {
+  for (const tie of tiesToRender) {
+    const fromNote = eventToStaveNote.get(tie.fromIdx);
+    const toNote = eventToStaveNote.get(tie.toIdx);
+
+    if (fromNote && toNote) {
+      try {
+        const staveTie = new StaveTie({
+          firstNote: fromNote,
+          lastNote: toNote,
+          firstIndexes: [0],
+          lastIndexes: [0],
+        });
+        staveTie.setContext(context).draw();
+      } catch (error) {
+        console.error("Error rendering tie:", error);
+      }
+    }
   }
 }
 

@@ -11,6 +11,7 @@ import {
   Pitch,
   generateEventId,
   pitchToMidi,
+  transposePitch,
 } from "./types";
 import {
   computeMeasures,
@@ -121,17 +122,18 @@ export class LeadSheetModel {
       )
     );
 
-    // Accidentals (shift+digit3 for #, minus for flat)
+    // Accidentals: # and b keys toggle accidental on left note when no pending
+    // or set pending accidental for next note
     this.unregisterShortcuts.push(
       registerKeyboardShortcut(
         ["shift", "digit3"],
-        gated(() => this.setPendingAccidental("#"))
+        gated(() => this.toggleAccidentalOnLeftNote("#"))
       )
     );
     this.unregisterShortcuts.push(
       registerKeyboardShortcut(
-        ["minus"],
-        gated(() => this.setPendingAccidental("b"))
+        ["b"],
+        gated(() => this.toggleAccidentalOnLeftNote("b"))
       )
     );
 
@@ -161,6 +163,42 @@ export class LeadSheetModel {
       )
     );
 
+    // Pitch editing: octave transpose
+    this.unregisterShortcuts.push(
+      registerKeyboardShortcut(
+        ["arrowup"],
+        gated(() => this.transposeSelectionOrLeftNote(12))
+      )
+    );
+    this.unregisterShortcuts.push(
+      registerKeyboardShortcut(
+        ["arrowdown"],
+        gated(() => this.transposeSelectionOrLeftNote(-12))
+      )
+    );
+
+    // Pitch editing: semitone transpose
+    this.unregisterShortcuts.push(
+      registerKeyboardShortcut(
+        ["meta", "arrowup"],
+        gated(() => this.transposeSelectionOrLeftNote(1))
+      )
+    );
+    this.unregisterShortcuts.push(
+      registerKeyboardShortcut(
+        ["meta", "arrowdown"],
+        gated(() => this.transposeSelectionOrLeftNote(-1))
+      )
+    );
+
+    // Naturalize
+    this.unregisterShortcuts.push(
+      registerKeyboardShortcut(
+        ["n"],
+        gated(() => this.naturalizeSelectionOrLeftNote())
+      )
+    );
+
     // Delete
     this.unregisterShortcuts.push(
       registerKeyboardShortcut(
@@ -180,6 +218,22 @@ export class LeadSheetModel {
       registerKeyboardShortcut(
         ["shift", "quote"],
         gated(() => this.enterChordMode())
+      )
+    );
+
+    // Tie toggle
+    this.unregisterShortcuts.push(
+      registerKeyboardShortcut(
+        ["t"],
+        gated(() => this.toggleTieAcrossCaret())
+      )
+    );
+
+    // Extend (dash key - note this replaces old flat shortcut)
+    this.unregisterShortcuts.push(
+      registerKeyboardShortcut(
+        ["minus"],
+        gated(() => this.extendLeftNoteByCurrentDurationUnit())
       )
     );
   }
@@ -457,6 +511,245 @@ export class LeadSheetModel {
   // Time signature
   setTimeSignature(timeSignature: TimeSignature) {
     this.timeSignature.set(timeSignature);
+  }
+
+  // Helper: get indices of selected note events
+  private getSelectedNoteIndices(): number[] {
+    const normalized = this.normalizedSelection.get();
+    if (!normalized) return [];
+
+    const events = this.events.get();
+    const noteIndices: number[] = [];
+
+    for (let i = normalized.start; i < normalized.end; i++) {
+      const event = events[i];
+      if (event && event.kind === "note") {
+        noteIndices.push(i);
+      }
+    }
+
+    return noteIndices;
+  }
+
+  // Helper: find note left of caret (skipping non-notes)
+  private findNoteLeftOfCaret(): number | null {
+    const caret = this.caret.get();
+    const events = this.events.get();
+
+    for (let i = caret - 1; i >= 0; i--) {
+      const event = events[i];
+      if (event && event.kind === "note") {
+        return i;
+      }
+    }
+
+    return null;
+  }
+
+  // Helper: find note right of caret (skipping non-notes)
+  private findNoteRightOfCaret(): number | null {
+    const caret = this.caret.get();
+    const events = this.events.get();
+
+    for (let i = caret; i < events.length; i++) {
+      const event = events[i];
+      if (event && event.kind === "note") {
+        return i;
+      }
+    }
+
+    return null;
+  }
+
+  // Cleanup invalid ties after mutations
+  private cleanupInvalidTies() {
+    const events = this.events.get();
+    const newEvents = [...events];
+    let modified = false;
+
+    for (let i = 0; i < newEvents.length; i++) {
+      const event = newEvents[i];
+      if (event && event.kind === "note" && event.tieToNext) {
+        // Find next note (skip non-notes)
+        let nextNoteIdx = null;
+        for (let j = i + 1; j < newEvents.length; j++) {
+          const nextEvent = newEvents[j];
+          if (nextEvent && nextEvent.kind === "note") {
+            nextNoteIdx = j;
+            break;
+          }
+        }
+
+        // Check if tie is valid
+        if (nextNoteIdx === null) {
+          // No next note - clear tie
+          newEvents[i] = { ...event, tieToNext: undefined };
+          modified = true;
+        } else {
+          const nextNote = newEvents[nextNoteIdx];
+          if (nextNote && nextNote.kind === "note") {
+            const currentMidi = pitchToMidi(event.pitch);
+            const nextMidi = pitchToMidi(nextNote.pitch);
+            if (currentMidi !== nextMidi) {
+              // Different pitch - clear tie
+              newEvents[i] = { ...event, tieToNext: undefined };
+              modified = true;
+            }
+          }
+        }
+      }
+    }
+
+    if (modified) {
+      this.events.set(newEvents);
+    }
+  }
+
+  // Transpose selected notes or note left of caret
+  transposeSelectionOrLeftNote(semitones: number) {
+    const selectedIndices = this.getSelectedNoteIndices();
+    const targetIndices =
+      selectedIndices.length > 0
+        ? selectedIndices
+        : (() => {
+            const leftIdx = this.findNoteLeftOfCaret();
+            return leftIdx !== null ? [leftIdx] : [];
+          })();
+
+    if (targetIndices.length === 0) return;
+
+    const events = this.events.get();
+    const newEvents = [...events];
+
+    for (const idx of targetIndices) {
+      const event = newEvents[idx];
+      if (event && event.kind === "note") {
+        const newPitch = transposePitch(event.pitch, semitones);
+        newEvents[idx] = { ...event, pitch: newPitch };
+      }
+    }
+
+    this.events.set(newEvents);
+    this.cleanupInvalidTies();
+  }
+
+  // Naturalize selected notes or note left of caret
+  naturalizeSelectionOrLeftNote() {
+    const selectedIndices = this.getSelectedNoteIndices();
+    const targetIndices =
+      selectedIndices.length > 0
+        ? selectedIndices
+        : (() => {
+            const leftIdx = this.findNoteLeftOfCaret();
+            return leftIdx !== null ? [leftIdx] : [];
+          })();
+
+    if (targetIndices.length === 0) return;
+
+    const events = this.events.get();
+    const newEvents = [...events];
+
+    for (const idx of targetIndices) {
+      const event = newEvents[idx];
+      if (event && event.kind === "note") {
+        newEvents[idx] = {
+          ...event,
+          pitch: { ...event.pitch, accidental: null },
+        };
+      }
+    }
+
+    this.events.set(newEvents);
+    this.cleanupInvalidTies();
+  }
+
+  // Toggle accidental on note left of caret (only when no pending accidental)
+  toggleAccidentalOnLeftNote(accidental: "#" | "b") {
+    if (this.pendingAccidental.get() !== null) {
+      // If there's a pending accidental, set it instead
+      this.setPendingAccidental(accidental);
+      return;
+    }
+
+    const leftIdx = this.findNoteLeftOfCaret();
+    if (leftIdx === null) return;
+
+    const events = this.events.get();
+    const event = events[leftIdx];
+    if (!event || event.kind !== "note") return;
+
+    const newEvents = [...events];
+    const currentAccidental = event.pitch.accidental;
+
+    // Toggle: if already has this accidental, remove it; otherwise set it
+    const newAccidental = currentAccidental === accidental ? null : accidental;
+
+    newEvents[leftIdx] = {
+      ...event,
+      pitch: { ...event.pitch, accidental: newAccidental },
+    };
+
+    this.events.set(newEvents);
+    this.cleanupInvalidTies();
+  }
+
+  // Toggle tie between note left and right of caret
+  toggleTieAcrossCaret() {
+    const leftIdx = this.findNoteLeftOfCaret();
+    const rightIdx = this.findNoteRightOfCaret();
+
+    if (leftIdx === null || rightIdx === null) return;
+
+    const events = this.events.get();
+    const leftNote = events[leftIdx];
+    const rightNote = events[rightIdx];
+
+    if (!leftNote || leftNote.kind !== "note") return;
+    if (!rightNote || rightNote.kind !== "note") return;
+
+    // Check if same MIDI
+    const leftMidi = pitchToMidi(leftNote.pitch);
+    const rightMidi = pitchToMidi(rightNote.pitch);
+
+    if (leftMidi !== rightMidi) return;
+
+    // Toggle tie
+    const newEvents = [...events];
+    newEvents[leftIdx] = {
+      ...leftNote,
+      tieToNext: leftNote.tieToNext ? undefined : true,
+    };
+
+    this.events.set(newEvents);
+  }
+
+  // Extend note left of caret by inserting a tied note of current duration
+  extendLeftNoteByCurrentDurationUnit() {
+    const leftIdx = this.findNoteLeftOfCaret();
+    if (leftIdx === null) return;
+
+    const events = this.events.get();
+    const leftNote = events[leftIdx];
+
+    if (!leftNote || leftNote.kind !== "note") return;
+
+    const duration = this.currentDuration.get();
+
+    // Create a new note with same pitch
+    const newNote: MelodyEvent = {
+      kind: "note",
+      id: generateEventId(),
+      duration,
+      pitch: { ...leftNote.pitch },
+    };
+
+    // Insert immediately after the left note and set tie
+    const newEvents = [...events];
+    newEvents.splice(leftIdx + 1, 0, newNote);
+    newEvents[leftIdx] = { ...leftNote, tieToNext: true };
+
+    this.events.set(newEvents);
+    // Note: caret stays where it is (between the two tied notes)
   }
 }
 

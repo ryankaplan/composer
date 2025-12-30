@@ -1,0 +1,4 @@
+- [ ] Editing UX / polish
+- [ ] Undo / redo
+- [ ] Play music
+- [ ] More beautiful UI
