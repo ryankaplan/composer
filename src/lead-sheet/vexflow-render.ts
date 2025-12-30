@@ -64,6 +64,15 @@ export function renderLeadSheet(options: RenderOptions) {
   renderer.resize(width, height);
   const context = renderer.getContext();
 
+  // VexFlow renders many glyphs (noteheads, clefs, time signatures) as SVG `<text>`.
+  // Some app-level CSS resets (e.g. from UI libraries) may apply `font-family` to `text`
+  // and override SVG presentation attributes. Force an inline style on the generated `<svg>`
+  // so Bravura/Academico wins in the cascade.
+  const svgEl = container.querySelector("svg");
+  if (svgEl) {
+    (svgEl as SVGSVGElement).style.fontFamily = "Bravura, Academico";
+  }
+
   renderMeasures(context, events, measures, timeSignature, width, height);
 }
 
