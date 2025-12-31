@@ -133,6 +133,15 @@ function renderMeasures(
   const eventToStaveNote = new Map<number, StaveNote>();
   // Track ties to render after all notes are drawn
   const tiesToRender: Array<{ fromIdx: number; toIdx: number }> = [];
+  // Map global event index to system index and staff metrics
+  const eventToSystemIdx = new Map<number, number>();
+  const eventToStaff = new Map<number, { top: number; bottom: number }>();
+  // Capture first system staff for empty-doc caret fallback
+  let firstSystemStaff: {
+    top: number;
+    bottom: number;
+    noteStartX: number;
+  } | null = null;
   // Calculate how many measures fit per system
   const availableWidth = Math.max(0, width - SYSTEM_PADDING_X * 2);
   const measuresPerSystem = Math.max(
@@ -190,6 +199,20 @@ function renderMeasures(
       }
 
       stave.setContext(context).draw();
+
+      // Capture staff metrics for this measure
+      const staffTop = stave.getYForLine(0);
+      const staffBottom = stave.getYForLine(4);
+      const staffMetrics = { top: staffTop, bottom: staffBottom };
+
+      // Capture first system staff for empty-doc caret fallback
+      if (firstSystemStaff === null) {
+        firstSystemStaff = {
+          top: staffTop,
+          bottom: staffBottom,
+          noteStartX: stave.getNoteStartX(),
+        };
+      }
 
       // Convert events to VexFlow notes and track event indices
       const vexNotes: StaveNote[] = [];
@@ -285,6 +308,10 @@ function renderMeasures(
               });
             }
 
+            // Record system index and staff metrics for this event
+            eventToSystemIdx.set(eventIdx, systemIdx);
+            eventToStaff.set(eventIdx, staffMetrics);
+
             // Check if this event has a tie
             const event = events[eventIdx];
             if (event && event.kind === "note" && event.tieToNext) {
@@ -321,7 +348,16 @@ function renderMeasures(
 
       // Render standalone chord anchors (chords without notes)
       if (chordAnchors.length > 0 && svgEl) {
-        renderChordAnchors(svgEl, chordAnchors, stave, eventBBoxes);
+        renderChordAnchors(
+          svgEl,
+          chordAnchors,
+          stave,
+          eventBBoxes,
+          systemIdx,
+          staffMetrics,
+          eventToSystemIdx,
+          eventToStaff
+        );
       }
 
       xOffset += MEASURE_WIDTH + INTER_MEASURE_GAP;
@@ -341,7 +377,10 @@ function renderMeasures(
       caret,
       selection,
       showCaret,
-      events.length
+      events.length,
+      eventToSystemIdx,
+      eventToStaff,
+      firstSystemStaff
     );
   }
 }
@@ -377,7 +416,11 @@ function renderChordAnchors(
   svgEl: Element,
   chordAnchors: Array<{ globalIdx: number; chord: string }>,
   stave: Stave,
-  eventBBoxes: Map<number, NoteBBox>
+  eventBBoxes: Map<number, NoteBBox>,
+  systemIdx: number,
+  staffMetrics: { top: number; bottom: number },
+  eventToSystemIdx: Map<number, number>,
+  eventToStaff: Map<number, { top: number; bottom: number }>
 ) {
   const NS = "http://www.w3.org/2000/svg";
 
@@ -405,6 +448,10 @@ function renderChordAnchors(
       width: bbox.width,
       height: bbox.height,
     });
+
+    // Record system index and staff metrics for this chord anchor
+    eventToSystemIdx.set(anchor.globalIdx, systemIdx);
+    eventToStaff.set(anchor.globalIdx, staffMetrics);
   }
 }
 
@@ -415,31 +462,95 @@ function renderOverlays(
   caret: number,
   selection: { start: number; end: number } | null,
   showCaret: boolean,
-  totalEvents: number
+  totalEvents: number,
+  eventToSystemIdx: Map<number, number>,
+  eventToStaff: Map<number, { top: number; bottom: number }>,
+  firstSystemStaff: { top: number; bottom: number; noteStartX: number } | null
 ) {
   const NS = "http://www.w3.org/2000/svg";
 
-  // Create an overlay group
-  const overlayGroup = document.createElementNS(NS, "g");
-  overlayGroup.setAttribute("id", "cursor-selection-overlay");
-  svgEl.appendChild(overlayGroup);
+  // Add CSS for blinking caret
+  const style = document.createElementNS(NS, "style");
+  style.textContent = `
+    @keyframes ls-caret-blink {
+      0%, 49% { opacity: 1; }
+      50%, 100% { opacity: 0; }
+    }
+    .ls-caret {
+      animation: ls-caret-blink 1.2s step-end infinite;
+    }
+  `;
+  svgEl.appendChild(style);
 
-  // 1) Render selection highlights
+  // Create separate overlay groups for layering
+  const selectionGroup = document.createElementNS(NS, "g");
+  selectionGroup.setAttribute("id", "selection-overlay");
+  selectionGroup.setAttribute("pointer-events", "none");
+
+  const caretGroup = document.createElementNS(NS, "g");
+  caretGroup.setAttribute("id", "caret-overlay");
+  caretGroup.setAttribute("pointer-events", "none");
+
+  const hitboxGroup = document.createElementNS(NS, "g");
+  hitboxGroup.setAttribute("id", "hitbox-overlay");
+
+  // Try to insert selection behind notes (best effort)
+  const firstNoteNode = svgEl.querySelector(
+    ".vf-stavenote, .vf-note, .vf-glyph"
+  );
+  if (firstNoteNode) {
+    svgEl.insertBefore(selectionGroup, firstNoteNode);
+  } else {
+    svgEl.appendChild(selectionGroup);
+  }
+  svgEl.appendChild(caretGroup);
+  svgEl.appendChild(hitboxGroup);
+
+  // 1) Render selection highlights as union rectangles per system
   if (selection) {
+    // Group selection bboxes by system
+    const systemUnions = new Map<
+      number,
+      { minX: number; minY: number; maxX: number; maxY: number }
+    >();
+
     for (let i = selection.start; i < selection.end; i++) {
       const bbox = eventBBoxes.get(i);
-      if (!bbox) continue;
+      const systemIdx = eventToSystemIdx.get(i);
+      if (!bbox || systemIdx === undefined) continue;
 
+      const existing = systemUnions.get(systemIdx);
+      if (existing) {
+        existing.minX = Math.min(existing.minX, bbox.x);
+        existing.minY = Math.min(existing.minY, bbox.y);
+        existing.maxX = Math.max(existing.maxX, bbox.x + bbox.width);
+        existing.maxY = Math.max(existing.maxY, bbox.y + bbox.height);
+      } else {
+        systemUnions.set(systemIdx, {
+          minX: bbox.x,
+          minY: bbox.y,
+          maxX: bbox.x + bbox.width,
+          maxY: bbox.y + bbox.height,
+        });
+      }
+    }
+
+    // Render one rectangle per system
+    const padding = 3;
+    for (const union of systemUnions.values()) {
       const rect = document.createElementNS(NS, "rect");
-      rect.setAttribute("x", String(bbox.x));
-      rect.setAttribute("y", String(bbox.y));
-      rect.setAttribute("width", String(bbox.width));
-      rect.setAttribute("height", String(bbox.height));
+      rect.setAttribute("x", String(union.minX - padding));
+      rect.setAttribute("y", String(union.minY - padding));
+      rect.setAttribute("width", String(union.maxX - union.minX + 2 * padding));
+      rect.setAttribute(
+        "height",
+        String(union.maxY - union.minY + 2 * padding)
+      );
       rect.setAttribute("fill", "rgba(59, 130, 246, 0.2)"); // blue.500 with opacity
       rect.setAttribute("stroke", "rgba(59, 130, 246, 0.5)");
       rect.setAttribute("stroke-width", "1");
       rect.setAttribute("pointer-events", "none");
-      overlayGroup.appendChild(rect);
+      selectionGroup.appendChild(rect);
     }
   }
 
@@ -447,32 +558,43 @@ function renderOverlays(
   if (showCaret) {
     let caretX: number | null = null;
     let caretY = 0;
-    let caretHeight = STAVE_HEIGHT;
+    let caretHeight = 0;
 
-    // Find the bbox of the event at or after the caret position
     const nextEventBBox = eventBBoxes.get(caret);
-    if (nextEventBBox) {
-      // Place caret at the left edge of the next event
+    const prevEventBBox = eventBBoxes.get(caret - 1);
+
+    // Compute caret X position (midpoint between adjacent events)
+    if (nextEventBBox && prevEventBBox) {
+      // Between two events: center between them
+      const prevRight = prevEventBBox.x + prevEventBBox.width;
+      const nextLeft = nextEventBBox.x;
+      caretX = (prevRight + nextLeft) / 2;
+    } else if (nextEventBBox) {
+      // Only next exists: place at left edge
       caretX = nextEventBBox.x;
-      caretY = nextEventBBox.y;
-      caretHeight = nextEventBBox.height;
-    } else if (caret > 0) {
-      // Place caret at the right edge of the last event
-      const prevEventBBox = eventBBoxes.get(caret - 1);
-      if (prevEventBBox) {
-        caretX = prevEventBBox.x + prevEventBBox.width;
-        caretY = prevEventBBox.y;
-        caretHeight = prevEventBBox.height;
-      }
-    } else if (caret === 0 && totalEvents === 0) {
-      // Empty document: place caret at a reasonable default position
-      caretX = SYSTEM_PADDING_X + 60; // After clef/time signature
-      caretY = STAVE_MARGIN;
-      caretHeight = STAVE_HEIGHT;
+    } else if (prevEventBBox) {
+      // Only prev exists: place at right edge
+      caretX = prevEventBBox.x + prevEventBBox.width;
+    } else if (caret === 0 && totalEvents === 0 && firstSystemStaff) {
+      // Empty document: use first system staff
+      caretX = firstSystemStaff.noteStartX;
     }
 
-    if (caretX !== null) {
+    // Compute caret Y and height from staff metrics
+    const staffPadding = 8;
+    let staff = eventToStaff.get(caret) || eventToStaff.get(caret - 1);
+    if (!staff && firstSystemStaff) {
+      staff = { top: firstSystemStaff.top, bottom: firstSystemStaff.bottom };
+    }
+
+    if (staff) {
+      caretY = staff.top - staffPadding;
+      caretHeight = staff.bottom - staff.top + 2 * staffPadding;
+    }
+
+    if (caretX !== null && caretHeight > 0) {
       const line = document.createElementNS(NS, "line");
+      line.setAttribute("class", "ls-caret");
       line.setAttribute("x1", String(caretX));
       line.setAttribute("y1", String(caretY));
       line.setAttribute("x2", String(caretX));
@@ -480,7 +602,7 @@ function renderOverlays(
       line.setAttribute("stroke", "rgb(59, 130, 246)"); // blue.500
       line.setAttribute("stroke-width", "2");
       line.setAttribute("pointer-events", "none");
-      overlayGroup.appendChild(line);
+      caretGroup.appendChild(line);
     }
   }
 
@@ -495,6 +617,6 @@ function renderOverlays(
     hitbox.setAttribute("stroke", "transparent");
     hitbox.setAttribute("cursor", "pointer");
     hitbox.setAttribute("data-event-idx", String(eventIdx));
-    overlayGroup.appendChild(hitbox);
+    hitboxGroup.appendChild(hitbox);
   }
 }
