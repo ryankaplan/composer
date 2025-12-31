@@ -1,4 +1,5 @@
 - [ ] Editing UX / polish
-- [ ] Undo / redo
 - [ ] Play music
-- [ ] More beautiful UI
+- [ ] More beautiful UI; make it feel like a document
+- [ ] Copy / Paste
+- [x] Undo / redo

@@ -189,18 +189,6 @@ function renderMeasures(
         stave.setBegBarType(BarlineType.NONE);
       }
 
-      // Draw invalid measure background (only if there are events)
-      if (measureEvents.length > 0 && measure.status !== "ok") {
-        const bgColor =
-          measure.status === "under"
-            ? "rgba(255, 200, 100, 0.2)"
-            : "rgba(255, 100, 100, 0.2)";
-        context.save();
-        context.setFillStyle(bgColor);
-        context.fillRect(xOffset, yOffset, MEASURE_WIDTH, STAVE_HEIGHT);
-        context.restore();
-      }
-
       stave.setContext(context).draw();
 
       // Convert events to VexFlow notes and track event indices
@@ -504,6 +492,7 @@ function renderOverlays(
     hitbox.setAttribute("width", String(bbox.width));
     hitbox.setAttribute("height", String(bbox.height));
     hitbox.setAttribute("fill", "transparent");
+    hitbox.setAttribute("stroke", "transparent");
     hitbox.setAttribute("cursor", "pointer");
     hitbox.setAttribute("data-event-idx", String(eventIdx));
     overlayGroup.appendChild(hitbox);
