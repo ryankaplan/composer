@@ -12,6 +12,8 @@ export function ShortcutPalette() {
     { keys: "-", description: "Extend note (tie + insert)" },
     { keys: "⌫ / ⌦", description: "Remove notes" },
     { keys: 'Shift+"', description: "Enter chord mode" },
+    { keys: "⌘+Z", description: "Undo" },
+    { keys: "⌘+Shift+Z", description: "Redo" },
   ];
 
   return (

@@ -2,40 +2,42 @@ import React from "react";
 import { Box, Flex } from "@chakra-ui/react";
 import { Tooltip } from "@chakra-ui/react/tooltip";
 import { useObservable } from "../lib/observable";
-import { model } from "../lead-sheet/LeadSheetModel";
+import { doc } from "../lead-sheet/Document";
+import { interfaceState } from "../lead-sheet/InterfaceState";
+import { toggleAccidentalAction } from "../lead-sheet/actions";
 import { Duration } from "../lead-sheet/types";
 import { formatShortcut } from "../lib/format-shortcut";
 
 export function Toolbar() {
-  const timeSignature = useObservable(model.timeSignature);
-  const currentDuration = useObservable(model.currentDuration);
-  const pendingAccidental = useObservable(model.pendingAccidental);
-  const caret = useObservable(model.caret);
-  const events = useObservable(model.events);
+  const timeSignature = useObservable(doc.timeSignature);
+  const currentDuration = useObservable(interfaceState.currentDuration);
+  const pendingAccidental = useObservable(interfaceState.pendingAccidental);
+  const caret = useObservable(doc.caret);
+  const events = useObservable(doc.events);
 
   function handleTimeSignatureChange(e: React.ChangeEvent<HTMLSelectElement>) {
     const beatsPerBar = parseInt(e.target.value) as 3 | 4;
-    model.setTimeSignature({ beatsPerBar, beatUnit: 4 });
+    doc.setTimeSignature({ beatsPerBar, beatUnit: 4 });
   }
 
   function handleDurationChange(duration: Duration) {
-    model.setCurrentDuration(duration);
+    interfaceState.setCurrentDuration(duration);
   }
 
   function handleSharpClick() {
-    model.toggleAccidentalSelectionOrLeftNote("#");
+    toggleAccidentalAction("#");
   }
 
   function handleFlatClick() {
-    model.toggleAccidentalSelectionOrLeftNote("b");
+    toggleAccidentalAction("b");
   }
 
   function handleNaturalClick() {
-    model.naturalizeSelectionOrLeftNote();
+    doc.naturalizeSelectionOrLeftNote();
   }
 
   function handleTieClick() {
-    model.toggleTieAcrossCaret();
+    doc.toggleTieAcrossCaret();
   }
 
   return (

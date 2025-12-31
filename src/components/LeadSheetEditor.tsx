@@ -1,7 +1,9 @@
 import React, { useRef, useEffect, useState } from "react";
 import { Box, Input } from "@chakra-ui/react";
 import { useObservable } from "../lib/observable";
-import { LeadSheetModel, model } from "../lead-sheet/LeadSheetModel";
+import { doc } from "../lead-sheet/Document";
+import { interfaceState } from "../lead-sheet/InterfaceState";
+import { commitChordAction } from "../lead-sheet/actions";
 import { renderLeadSheet } from "../lead-sheet/vexflow-render";
 
 export function LeadSheetEditor() {
@@ -12,13 +14,13 @@ export function LeadSheetEditor() {
   const chordInputRef = useRef<HTMLInputElement>(null);
 
   // Subscribe to model state
-  const events = useObservable(model.events);
-  const measures = useObservable(model.measures);
-  const timeSignature = useObservable(model.timeSignature);
-  const caret = useObservable(model.caret);
-  const normalizedSelection = useObservable(model.normalizedSelection);
-  const chordMode = useObservable(model.chordMode);
-  const hasFocus = useObservable(model.hasFocus);
+  const events = useObservable(doc.events);
+  const measures = useObservable(doc.measures);
+  const timeSignature = useObservable(doc.timeSignature);
+  const caret = useObservable(doc.caret);
+  const normalizedSelection = useObservable(doc.normalizedSelection);
+  const chordMode = useObservable(interfaceState.chordMode);
+  const hasFocus = useObservable(interfaceState.hasFocus);
 
   const [containerSize, setContainerSize] = useState({
     width: 800,
@@ -128,7 +130,7 @@ export function LeadSheetEditor() {
           if (eventIdxAttr !== null) {
             const eventIdx = parseInt(eventIdxAttr, 10);
             if (!isNaN(eventIdx)) {
-              model.selectSingleEvent(eventIdx);
+              doc.selectSingleEvent(eventIdx);
               // Focus the editor so keyboard shortcuts work
               editorRef.current?.focus();
               e.stopPropagation();
@@ -138,7 +140,7 @@ export function LeadSheetEditor() {
         }
       }
       // If we clicked empty space, just clear selection
-      model.clearSelection();
+      doc.clearSelection();
     }
 
     const shadowRoot = host.shadowRoot;
@@ -151,26 +153,26 @@ export function LeadSheetEditor() {
 
   // Handle focus/blur for editor surface
   function handleEditorFocus() {
-    model.setHasFocus(true);
+    interfaceState.setHasFocus(true);
   }
 
   function handleEditorBlur() {
-    model.setHasFocus(false);
+    interfaceState.setHasFocus(false);
   }
 
   // Handle chord input changes
   function handleChordInputChange(e: React.ChangeEvent<HTMLInputElement>) {
-    model.setChordDraft(e.target.value);
+    interfaceState.setChordDraft(e.target.value);
   }
 
   // Handle chord input key events
   function handleChordInputKeyDown(e: React.KeyboardEvent<HTMLInputElement>) {
     if (e.key === "Enter") {
       e.preventDefault();
-      model.commitChord();
+      commitChordAction();
     } else if (e.key === "Escape") {
       e.preventDefault();
-      model.cancelChordMode();
+      interfaceState.cancelChordMode();
     }
   }
 
