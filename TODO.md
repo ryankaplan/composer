@@ -3,3 +3,5 @@
 - [ ] More beautiful UI; make it feel like a document
 - [ ] Copy / Paste
 - [x] Undo / redo
+- [ ] Persistence
+- [ ] File organization

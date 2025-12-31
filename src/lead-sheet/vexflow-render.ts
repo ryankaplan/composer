@@ -573,8 +573,19 @@ function renderOverlays(
       // Only next exists: place at left edge
       caretX = nextEventBBox.x;
     } else if (prevEventBBox) {
-      // Only prev exists: place at right edge
-      caretX = prevEventBBox.x + prevEventBBox.width;
+      // Only prev exists (caret at end): add spacing based on previous note gap
+      const prevPrevEventBBox = eventBBoxes.get(caret - 2);
+      let spacing = 25; // default spacing
+
+      if (prevPrevEventBBox) {
+        // Use half the gap between the previous two notes
+        const prevPrevRight = prevPrevEventBBox.x + prevPrevEventBBox.width;
+        const prevLeft = prevEventBBox.x;
+        const gapBetweenPrevNotes = prevLeft - prevPrevRight;
+        spacing = gapBetweenPrevNotes / 2;
+      }
+
+      caretX = prevEventBBox.x + prevEventBBox.width + spacing;
     } else if (caret === 0 && totalEvents === 0 && firstSystemStaff) {
       // Empty document: use first system staff
       caretX = firstSystemStaff.noteStartX;
