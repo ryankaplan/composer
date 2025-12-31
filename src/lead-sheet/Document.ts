@@ -37,7 +37,6 @@ export class Document {
   // Derived values
   readonly normalizedSelection: Derived<{ start: number; end: number } | null>;
   readonly measures: Derived<Measure[]>;
-  readonly prevNoteMidiAtCaret: Derived<number | null>;
 
   // Undo/redo state
   private undoStack: DocumentSnapshot[] = [];
@@ -57,11 +56,6 @@ export class Document {
       () => computeMeasures(this.events.get(), this.timeSignature.get()),
       [this.events, this.timeSignature]
     );
-
-    this.prevNoteMidiAtCaret = derivedValue(
-      () => findPrevNoteMidi(this.events.get(), this.caret.get()),
-      [this.events, this.caret]
-    );
   }
 
   // ==================== UNDO/REDO ====================
@@ -71,9 +65,7 @@ export class Document {
       events: this.cloneEvents(this.events.get()),
       timeSignature: { ...this.timeSignature.get() },
       caret: this.caret.get(),
-      selection: this.selection.get()
-        ? { ...this.selection.get()! }
-        : null,
+      selection: this.selection.get() ? { ...this.selection.get()! } : null,
     };
   }
 
@@ -94,9 +86,7 @@ export class Document {
     this.events.set(this.cloneEvents(snapshot.events));
     this.timeSignature.set({ ...snapshot.timeSignature });
     this.caret.set(snapshot.caret);
-    this.selection.set(
-      snapshot.selection ? { ...snapshot.selection } : null
-    );
+    this.selection.set(snapshot.selection ? { ...snapshot.selection } : null);
     this.isApplyingHistory = false;
   }
 
@@ -162,6 +152,11 @@ export class Document {
   }
 
   // ==================== SELECTION / CARET (NO UNDO) ====================
+
+  // Helper: get MIDI of previous note before caret
+  getPrevNoteMidiAtCaret(): number | null {
+    return findPrevNoteMidi(this.events.get(), this.caret.get());
+  }
 
   clearSelection() {
     this.selection.set(null);
@@ -640,4 +635,3 @@ export class Document {
 }
 
 export const doc = new Document();
-

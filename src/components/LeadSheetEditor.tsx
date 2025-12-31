@@ -20,7 +20,6 @@ export function LeadSheetEditor() {
   const caret = useObservable(doc.caret);
   const normalizedSelection = useObservable(doc.normalizedSelection);
   const chordMode = useObservable(interfaceState.chordMode);
-  const hasFocus = useObservable(interfaceState.hasFocus);
 
   const [containerSize, setContainerSize] = useState({
     width: 800,
@@ -95,7 +94,7 @@ export function LeadSheetEditor() {
       selection: normalizedSelection,
       width: containerSize.width,
       height: containerSize.height,
-      showCaret: hasFocus && chordMode === null,
+      showCaret: chordMode === null,
     });
   }, [
     events,
@@ -105,7 +104,6 @@ export function LeadSheetEditor() {
     normalizedSelection,
     containerSize,
     shadowReady,
-    hasFocus,
     chordMode,
   ]);
 
@@ -151,15 +149,6 @@ export function LeadSheetEditor() {
     };
   }, []);
 
-  // Handle focus/blur for editor surface
-  function handleEditorFocus() {
-    interfaceState.setHasFocus(true);
-  }
-
-  function handleEditorBlur() {
-    interfaceState.setHasFocus(false);
-  }
-
   // Handle chord input changes
   function handleChordInputChange(e: React.ChangeEvent<HTMLInputElement>) {
     interfaceState.setChordDraft(e.target.value);
@@ -182,13 +171,11 @@ export function LeadSheetEditor() {
       <Box
         ref={editorRef}
         tabIndex={0}
-        onFocus={handleEditorFocus}
-        onBlur={handleEditorBlur}
         p={4}
         position="relative"
         outline="none"
-        bg={hasFocus ? "blue.50" : "white"}
-        cursor={hasFocus ? "default" : "pointer"}
+        bg="blue.50"
+        cursor="default"
         height="100%"
         _focusVisible={{
           borderColor: "blue.500",

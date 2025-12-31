@@ -10,13 +10,7 @@ export class InterfaceState {
   // Observable state (not undoable)
   readonly currentDuration = new Observable<Duration>("1/4");
   readonly pendingAccidental = new Observable<Accidental>(null);
-  readonly hasFocus = new Observable<boolean>(false);
   readonly chordMode = new Observable<ChordMode>(null);
-
-  // Focus management
-  setHasFocus(focused: boolean) {
-    this.hasFocus.set(focused);
-  }
 
   // Duration
   setCurrentDurationFromKey(key: "4" | "8" | "6") {

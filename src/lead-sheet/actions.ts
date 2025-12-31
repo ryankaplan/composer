@@ -42,7 +42,7 @@ export function insertNoteAction(letter: PitchLetter) {
   let octave = DEFAULT_OCTAVE;
 
   // Apply nearest-octave rule
-  const prevMidi = doc.prevNoteMidiAtCaret.get();
+  const prevMidi = doc.getPrevNoteMidiAtCaret();
   if (prevMidi !== null) {
     // Create temporary pitch to compute midi
     const tempPitch: Pitch = { letter, accidental, octave: DEFAULT_OCTAVE };
