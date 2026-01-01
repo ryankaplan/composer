@@ -377,11 +377,13 @@ export function LeadSheetEditor() {
           {/* Measure append box (right of last melody measure) */}
           {layout &&
             melodyMeasureCount > 0 &&
-            measures.length === melodyMeasureCount &&
             (() => {
+              // Show the + box in the next virtual measure slot, so you can extend repeatedly.
+              // This is intentionally NOT tied to melodyMeasureCount.
+              const targetMeasureIndex = measures.length;
               const rect = computeVirtualMeasureRect(
                 layout,
-                melodyMeasureCount
+                targetMeasureIndex
               );
               if (!rect) return null;
               return (
