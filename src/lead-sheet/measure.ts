@@ -154,3 +154,35 @@ export function computeMelodyEndUnit(events: MelodyEvent[]): Unit {
 
   return currentUnit;
 }
+
+// Pad measures with empty measures until they cover the target end unit
+export function padMeasuresToEndUnit(
+  melodyMeasures: Measure[],
+  targetEndUnit: Unit,
+  timeSignature: TimeSignature,
+  eventCount: number
+): Measure[] {
+  const capacityUnits = getBarCapacity(timeSignature);
+  const targetMeasureCount = Math.ceil(targetEndUnit / capacityUnits);
+
+  // If we already have enough measures, return as is
+  if (melodyMeasures.length >= targetMeasureCount) {
+    return melodyMeasures;
+  }
+
+  // Create padded measures
+  const paddedMeasures = [...melodyMeasures];
+
+  for (let i = melodyMeasures.length; i < targetMeasureCount; i++) {
+    paddedMeasures.push({
+      index: i,
+      startEventIdx: eventCount,
+      endEventIdx: eventCount,
+      filledUnits: 0,
+      capacityUnits,
+      status: "under",
+    });
+  }
+
+  return paddedMeasures;
+}

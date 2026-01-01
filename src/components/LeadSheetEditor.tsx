@@ -1,5 +1,5 @@
 import React, { useRef, useEffect, useState } from "react";
-import { Box, Input } from "@chakra-ui/react";
+import { Box, Input, Button } from "@chakra-ui/react";
 import { useObservable } from "../lib/observable";
 import { doc } from "../lead-sheet/Document";
 import { renderLeadSheet, LeadSheetLayout } from "../lead-sheet/vexflow-render";
@@ -279,6 +279,11 @@ export function LeadSheetEditor() {
     doc.resizeChordRegion(regionId, newStart, newEnd);
   }
 
+  // Handle extend document by 1 bar
+  function handleExtendDocument() {
+    doc.extendDocumentByBars(1);
+  }
+
   return (
     <Box width="100%" height="100%" position="relative">
       {/* Editor surface (focusable) - viewport wrapper with stable size */}
@@ -424,6 +429,20 @@ export function LeadSheetEditor() {
               </Box>
             );
           })()}
+
+        {/* Extend document button */}
+        <Button
+          position="absolute"
+          bottom="20px"
+          right="20px"
+          size="sm"
+          colorScheme="blue"
+          onClick={handleExtendDocument}
+          zIndex={5}
+          title="Add 1 measure"
+        >
+          +1 bar
+        </Button>
       </Box>
     </Box>
   );
