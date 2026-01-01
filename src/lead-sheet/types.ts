@@ -1,5 +1,8 @@
 // Core types for the lead-sheet editor
 
+// Time units: 1 unit = 1/16 note
+export type Unit = number;
+
 export type Duration = "1/4" | "1/8" | "1/16";
 
 export type TimeSignature = {
@@ -161,3 +164,18 @@ export function transposePitch(pitch: Pitch, semitones: number): Pitch {
 
   return midiToPitch(newMidi, preferAccidental);
 }
+
+// ==================== CHORD TRACK ====================
+
+// A chord region spans time [start, end) with non-overlapping invariant
+export type ChordRegion = {
+  id: string;
+  start: Unit; // inclusive, in 1/16 units
+  end: Unit; // exclusive, must be > start
+  text: string; // raw chord text (e.g. "CMaj7", "Dm7b5")
+};
+
+// Chord track with non-overlapping regions sorted by start
+export type ChordTrack = {
+  regions: ChordRegion[];
+};

@@ -20,6 +20,9 @@ export function LeadSheetEditor() {
   const caret = useObservable(doc.caret);
   const normalizedSelection = useObservable(doc.normalizedSelection);
   const chordMode = useObservable(interfaceState.chordMode);
+  const chordTrack = useObservable(doc.chords);
+  const eventStartUnits = useObservable(doc.eventStartUnits);
+  const documentEndUnit = useObservable(doc.documentEndUnit);
 
   const [containerSize, setContainerSize] = useState({
     width: 800,
@@ -27,6 +30,8 @@ export function LeadSheetEditor() {
   });
 
   const [shadowReady, setShadowReady] = useState(false);
+  const [editingChordId, setEditingChordId] = useState<string | null>(null);
+  const [editingChordText, setEditingChordText] = useState("");
 
   // Isolate VexFlow SVG output from app CSS by rendering into a ShadowRoot.
   useEffect(() => {
@@ -95,6 +100,9 @@ export function LeadSheetEditor() {
       width: containerSize.width,
       height: containerSize.height,
       showCaret: chordMode === null,
+      chordTrack,
+      eventStartUnits,
+      documentEndUnit,
     });
   }, [
     events,
@@ -105,6 +113,9 @@ export function LeadSheetEditor() {
     containerSize,
     shadowReady,
     chordMode,
+    chordTrack,
+    eventStartUnits,
+    documentEndUnit,
   ]);
 
   // Focus chord input when chord mode opens
@@ -114,7 +125,7 @@ export function LeadSheetEditor() {
     }
   }, [chordMode]);
 
-  // Handle clicks on rendered notes/rests in the shadow DOM
+  // Handle clicks on rendered notes/rests/chords in the shadow DOM
   useEffect(() => {
     const host = shadowHostRef.current;
     if (!host || !host.shadowRoot) return;
@@ -124,6 +135,19 @@ export function LeadSheetEditor() {
       const path = e.composedPath();
       for (const element of path) {
         if (element instanceof Element) {
+          // Check for chord region click
+          const chordIdAttr = element.getAttribute("data-chord-id");
+          if (chordIdAttr !== null) {
+            const region = chordTrack.regions.find((r) => r.id === chordIdAttr);
+            if (region) {
+              setEditingChordId(region.id);
+              setEditingChordText(region.text);
+              e.stopPropagation();
+              return;
+            }
+          }
+
+          // Check for melody event click
           const eventIdxAttr = element.getAttribute("data-event-idx");
           if (eventIdxAttr !== null) {
             const eventIdx = parseInt(eventIdxAttr, 10);
@@ -139,6 +163,7 @@ export function LeadSheetEditor() {
       }
       // If we clicked empty space, just clear selection
       doc.clearSelection();
+      setEditingChordId(null);
     }
 
     const shadowRoot = host.shadowRoot;
@@ -147,14 +172,14 @@ export function LeadSheetEditor() {
     return () => {
       shadowRoot.removeEventListener("click", handleClick);
     };
-  }, []);
+  }, [chordTrack]);
 
-  // Handle chord input changes
+  // Handle chord input changes (legacy modal mode)
   function handleChordInputChange(e: React.ChangeEvent<HTMLInputElement>) {
     interfaceState.setChordDraft(e.target.value);
   }
 
-  // Handle chord input key events
+  // Handle chord input key events (legacy modal mode)
   function handleChordInputKeyDown(e: React.KeyboardEvent<HTMLInputElement>) {
     if (e.key === "Enter") {
       e.preventDefault();
@@ -162,6 +187,24 @@ export function LeadSheetEditor() {
     } else if (e.key === "Escape") {
       e.preventDefault();
       interfaceState.cancelChordMode();
+    }
+  }
+
+  // Handle chord region editing
+  function handleChordEditChange(e: React.ChangeEvent<HTMLInputElement>) {
+    setEditingChordText(e.target.value);
+  }
+
+  function handleChordEditKeyDown(e: React.KeyboardEvent<HTMLInputElement>) {
+    if (e.key === "Enter") {
+      e.preventDefault();
+      if (editingChordId && editingChordText.trim()) {
+        doc.updateChordRegionText(editingChordId, editingChordText.trim());
+      }
+      setEditingChordId(null);
+    } else if (e.key === "Escape") {
+      e.preventDefault();
+      setEditingChordId(null);
     }
   }
 
@@ -220,7 +263,7 @@ export function LeadSheetEditor() {
           />
         </div>
 
-        {/* Chord input overlay */}
+        {/* Chord input overlay (legacy modal mode) */}
         {chordMode && (
           <Box
             position="absolute"
@@ -234,6 +277,30 @@ export function LeadSheetEditor() {
               value={chordMode.text}
               onChange={handleChordInputChange}
               onKeyDown={handleChordInputKeyDown}
+              placeholder="Enter chord (e.g. Cmaj7)"
+              size="sm"
+              width="200px"
+              bg="white"
+              border="2px solid"
+              borderColor="blue.500"
+            />
+          </Box>
+        )}
+
+        {/* Chord region edit overlay */}
+        {editingChordId && (
+          <Box
+            position="absolute"
+            top="20px"
+            left="50%"
+            transform="translateX(-50%)"
+            zIndex={10}
+          >
+            <Input
+              autoFocus
+              value={editingChordText}
+              onChange={handleChordEditChange}
+              onKeyDown={handleChordEditKeyDown}
               placeholder="Enter chord (e.g. Cmaj7)"
               size="sm"
               width="200px"

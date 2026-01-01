@@ -8,18 +8,31 @@ import {
   generateEventId,
   pitchToMidi,
   transposePitch,
+  ChordTrack,
+  Unit,
+  getBarCapacity,
 } from "./types";
 import {
   computeMeasures,
   normalizeSelection,
   findPrevNoteMidi,
+  computeEventStartUnits,
+  computeMelodyEndUnit,
 } from "./measure";
+import {
+  insertChordRegion,
+  updateChordText,
+  deleteChordRegion,
+  resizeChordRegion,
+  findInsertionGap,
+} from "./chords";
 
 type DocumentSnapshot = {
   events: MelodyEvent[];
   timeSignature: TimeSignature;
   caret: number;
   selection: Selection;
+  chords: ChordTrack;
 };
 
 const MAX_HISTORY_SIZE = 200;
@@ -33,10 +46,14 @@ export class Document {
   readonly events = new Observable<MelodyEvent[]>([]);
   readonly caret = new Observable<number>(0);
   readonly selection = new Observable<Selection>(null);
+  readonly chords = new Observable<ChordTrack>({ regions: [] });
 
   // Derived values
   readonly normalizedSelection: Derived<{ start: number; end: number } | null>;
   readonly measures: Derived<Measure[]>;
+  readonly eventStartUnits: Derived<Unit[]>;
+  readonly melodyEndUnit: Derived<Unit>;
+  readonly documentEndUnit: Derived<Unit>;
 
   // Undo/redo state
   private undoStack: DocumentSnapshot[] = [];
@@ -56,6 +73,28 @@ export class Document {
       () => computeMeasures(this.events.get(), this.timeSignature.get()),
       [this.events, this.timeSignature]
     );
+
+    // Melody event timing (for chord alignment)
+    this.eventStartUnits = derivedValue(
+      () => computeEventStartUnits(this.events.get()),
+      [this.events]
+    );
+
+    this.melodyEndUnit = derivedValue(
+      () => computeMelodyEndUnit(this.events.get()),
+      [this.events]
+    );
+
+    // Document end time (max of melody and chord tracks)
+    this.documentEndUnit = derivedValue(() => {
+      const melodyEnd = this.melodyEndUnit.get();
+      const chordTrack = this.chords.get();
+      const chordEnd =
+        chordTrack.regions.length > 0
+          ? chordTrack.regions[chordTrack.regions.length - 1]!.end
+          : 0;
+      return Math.max(melodyEnd, chordEnd);
+    }, [this.melodyEndUnit, this.chords]);
   }
 
   // ==================== UNDO/REDO ====================
@@ -66,6 +105,13 @@ export class Document {
       timeSignature: { ...this.timeSignature.get() },
       caret: this.caret.get(),
       selection: this.selection.get() ? { ...this.selection.get()! } : null,
+      chords: this.cloneChordTrack(this.chords.get()),
+    };
+  }
+
+  private cloneChordTrack(track: ChordTrack): ChordTrack {
+    return {
+      regions: track.regions.map((r) => ({ ...r })),
     };
   }
 
@@ -87,6 +133,7 @@ export class Document {
     this.timeSignature.set({ ...snapshot.timeSignature });
     this.caret.set(snapshot.caret);
     this.selection.set(snapshot.selection ? { ...snapshot.selection } : null);
+    this.chords.set(this.cloneChordTrack(snapshot.chords));
     this.isApplyingHistory = false;
   }
 
@@ -643,7 +690,7 @@ export class Document {
     });
   }
 
-  // Attach/update chord to event at or after caret
+  // Attach/update chord to event at or after caret (legacy)
   attachChord(chordText: string) {
     const events = this.events.get();
     const caret = this.caret.get();
@@ -677,6 +724,61 @@ export class Document {
         this.caret.set(caret + 1);
       });
     }
+  }
+
+  // ==================== CHORD TRACK OPERATIONS ====================
+
+  // Insert a chord region in a measure, filling the available gap
+  insertChordInMeasure(barIndex: number, text: string, clickUnit?: Unit) {
+    const timeSignature = this.timeSignature.get();
+    const unitsPerBar = getBarCapacity(timeSignature);
+    const barStartUnit = barIndex * unitsPerBar;
+    const barEndUnit = (barIndex + 1) * unitsPerBar;
+
+    const track = this.chords.get();
+    const gap = findInsertionGap(track, barStartUnit, barEndUnit, clickUnit);
+
+    if (!gap) {
+      // Measure is completely filled, cannot insert
+      return null;
+    }
+
+    return this.withUndoStep(() => {
+      const result = insertChordRegion(track, gap.start, gap.end, text);
+      this.chords.set(result.track);
+      return result.region.id;
+    });
+  }
+
+  // Update the text of a chord region
+  updateChordRegionText(id: string, text: string) {
+    return this.withUndoStep(() => {
+      const track = this.chords.get();
+      const newTrack = updateChordText(track, id, text);
+      this.chords.set(newTrack);
+    });
+  }
+
+  // Delete a chord region
+  deleteChordRegion(id: string) {
+    return this.withUndoStep(() => {
+      const track = this.chords.get();
+      const newTrack = deleteChordRegion(track, id);
+      this.chords.set(newTrack);
+    });
+  }
+
+  // Resize a chord region (with clamping to neighbors)
+  resizeChordRegion(id: string, newStart: Unit, newEnd: Unit) {
+    return this.withUndoStep(() => {
+      const track = this.chords.get();
+      const newTrack = resizeChordRegion(track, id, newStart, newEnd);
+      if (newTrack) {
+        this.chords.set(newTrack);
+        return true;
+      }
+      return false;
+    });
   }
 }
 

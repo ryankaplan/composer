@@ -92,6 +92,27 @@ export function commitChordAction() {
   interfaceState.commitChordMode();
 }
 
+// Insert a chord in the current measure (new chord track approach)
+export function insertChordInCurrentMeasureAction() {
+  const measures = doc.measures.get();
+  const caret = doc.caret.get();
+
+  // Find which measure the caret is in
+  let measureIndex = 0;
+  for (const measure of measures) {
+    if (caret >= measure.startEventIdx && caret < measure.endEventIdx) {
+      measureIndex = measure.index;
+      break;
+    }
+    if (caret >= measure.endEventIdx) {
+      measureIndex = measure.index;
+    }
+  }
+
+  // Insert a placeholder chord
+  doc.insertChordInMeasure(measureIndex, "C");
+}
+
 export function extendLeftNoteAction() {
   const duration = interfaceState.currentDuration.get();
   doc.extendLeftNoteByDuration(duration);
@@ -312,11 +333,19 @@ export function registerShortcuts() {
     )
   );
 
-  // Chord mode entry (quote key)
+  // Chord mode entry (quote key) - legacy
   unregisterShortcuts.push(
     registerKeyboardShortcut(
       ["shift", "quote"],
       gated(() => interfaceState.enterChordMode(doc.caret.get()))
+    )
+  );
+
+  // Insert chord in current measure (new chord track)
+  unregisterShortcuts.push(
+    registerKeyboardShortcut(
+      ["meta", "shift", "c"],
+      gated(() => insertChordInCurrentMeasureAction())
     )
   );
 

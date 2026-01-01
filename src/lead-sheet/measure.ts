@@ -6,6 +6,7 @@ import {
   durationToUnits,
   getBarCapacity,
   pitchToMidi,
+  Unit,
 } from "./types";
 
 // Compute measures from a flat event list and time signature
@@ -126,4 +127,36 @@ export function findPrevNoteMidi(
     }
   }
   return null;
+}
+
+// Compute the start time (in units) for each melody event
+// Returns an array where eventStartUnits[i] is the start time of events[i]
+export function computeEventStartUnits(events: MelodyEvent[]): Unit[] {
+  const startUnits: Unit[] = [];
+  let currentUnit: Unit = 0;
+
+  for (const event of events) {
+    startUnits.push(currentUnit);
+
+    // Chord anchors contribute 0 units
+    const eventUnits =
+      event.kind === "chordAnchor" ? 0 : durationToUnits(event.duration);
+    currentUnit += eventUnits;
+  }
+
+  return startUnits;
+}
+
+// Compute the end time (in units) of the melody track
+export function computeMelodyEndUnit(events: MelodyEvent[]): Unit {
+  let currentUnit: Unit = 0;
+
+  for (const event of events) {
+    // Chord anchors contribute 0 units
+    const eventUnits =
+      event.kind === "chordAnchor" ? 0 : durationToUnits(event.duration);
+    currentUnit += eventUnits;
+  }
+
+  return currentUnit;
 }
