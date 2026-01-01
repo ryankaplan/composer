@@ -6,7 +6,6 @@ import {
   Voice,
   Accidental as VexAccidental,
   BarlineType,
-  ChordSymbol,
   StaveTie,
 } from "vexflow/bravura";
 import {
@@ -277,7 +276,6 @@ function renderMeasures(
       // Convert events to VexFlow notes and track event indices
       const vexNotes: StaveNote[] = [];
       const noteToEventIdx: Map<StaveNote, number> = new Map();
-      const chordAnchors: Array<{ globalIdx: number; chord: string }> = [];
 
       for (let localIdx = 0; localIdx < measureEvents.length; localIdx++) {
         const event = measureEvents[localIdx];
@@ -305,14 +303,6 @@ function renderMeasures(
             note.addModifier(new VexAccidental("b"), 0);
           }
 
-          // Add chord symbol above note if present
-          if (event.chord) {
-            const chordSymbol = new ChordSymbol()
-              .addText(event.chord)
-              .setFont("Arial", 12);
-            note.addModifier(chordSymbol, 0);
-          }
-
           vexNotes.push(note);
           noteToEventIdx.set(note, globalIdx);
           eventToStaveNote.set(globalIdx, note);
@@ -326,9 +316,6 @@ function renderMeasures(
           vexNotes.push(rest);
           noteToEventIdx.set(rest, globalIdx);
           eventToStaveNote.set(globalIdx, rest);
-        } else if (event.kind === "chordAnchor") {
-          // Chord anchors don't render as notes, but we need to render their chord text
-          chordAnchors.push({ globalIdx, chord: event.chord });
         }
       }
 
@@ -406,20 +393,6 @@ function renderMeasures(
         }
       }
 
-      // Render standalone chord anchors (chords without notes)
-      if (chordAnchors.length > 0 && svgEl) {
-        renderChordAnchors(
-          svgEl,
-          chordAnchors,
-          stave,
-          eventBBoxes,
-          systemIdx,
-          staffMetrics,
-          eventToSystemIdx,
-          eventToStaff
-        );
-      }
-
       xOffset += MEASURE_WIDTH + INTER_MEASURE_GAP;
     }
 
@@ -470,50 +443,6 @@ function renderTies(
         console.error("Error rendering tie:", error);
       }
     }
-  }
-}
-
-// Render standalone chord anchors as text on the staff
-function renderChordAnchors(
-  svgEl: Element,
-  chordAnchors: Array<{ globalIdx: number; chord: string }>,
-  stave: Stave,
-  eventBBoxes: Map<number, NoteBBox>,
-  systemIdx: number,
-  staffMetrics: { top: number; bottom: number },
-  eventToSystemIdx: Map<number, number>,
-  eventToStaff: Map<number, { top: number; bottom: number }>
-) {
-  const NS = "http://www.w3.org/2000/svg";
-
-  for (const anchor of chordAnchors) {
-    // Position chord anchor to match VexFlow's chord symbol style
-    // Place it at the staff's note area, above the staff like regular chord symbols
-    const x = stave.getNoteStartX();
-    const y = stave.getYForLine(0) - 30; // Above the staff, matching ChordSymbol position
-
-    const text = document.createElementNS(NS, "text");
-    text.setAttribute("x", String(x));
-    text.setAttribute("y", String(y));
-    text.setAttribute("font-family", "Arial, sans-serif");
-    text.setAttribute("font-size", "12");
-    text.setAttribute("font-weight", "normal"); // Regular weight like ChordSymbol
-    text.setAttribute("fill", "black");
-    text.textContent = anchor.chord;
-    svgEl.appendChild(text);
-
-    // Create a bounding box for the chord anchor so it can be clicked
-    const bbox = text.getBBox();
-    eventBBoxes.set(anchor.globalIdx, {
-      x: bbox.x,
-      y: bbox.y,
-      width: bbox.width,
-      height: bbox.height,
-    });
-
-    // Record system index and staff metrics for this chord anchor
-    eventToSystemIdx.set(anchor.globalIdx, systemIdx);
-    eventToStaff.set(anchor.globalIdx, staffMetrics);
   }
 }
 

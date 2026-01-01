@@ -690,42 +690,6 @@ export class Document {
     });
   }
 
-  // Attach/update chord to event at or after caret (legacy)
-  attachChord(chordText: string) {
-    const events = this.events.get();
-    const caret = this.caret.get();
-
-    // Find next note event at or after caret
-    let foundNote = false;
-    for (let i = caret; i < events.length; i++) {
-      const event = events[i];
-      if (event && event.kind === "note") {
-        return this.withUndoStep(() => {
-          // Attach chord to this note
-          const newEvents = [...events];
-          newEvents[i] = { ...event, chord: chordText };
-          this.events.set(newEvents);
-        });
-      }
-    }
-
-    // If no note found, insert chord anchor
-    if (!foundNote) {
-      return this.withUndoStep(() => {
-        const newEvent: MelodyEvent = {
-          kind: "chordAnchor",
-          id: generateEventId(),
-          chord: chordText,
-        };
-
-        const newEvents = [...events];
-        newEvents.splice(caret, 0, newEvent);
-        this.events.set(newEvents);
-        this.caret.set(caret + 1);
-      });
-    }
-  }
-
   // ==================== CHORD TRACK OPERATIONS ====================
 
   // Insert a chord region in a measure, filling the available gap

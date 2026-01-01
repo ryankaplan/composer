@@ -80,19 +80,7 @@ export function toggleAccidentalAction(accidental: "#" | "b") {
   }
 }
 
-export function commitChordAction() {
-  const mode = interfaceState.chordMode.get();
-  if (!mode || !mode.text.trim()) {
-    interfaceState.commitChordMode();
-    return;
-  }
-
-  const chordText = mode.text.trim();
-  doc.attachChord(chordText);
-  interfaceState.commitChordMode();
-}
-
-// Insert a chord in the current measure (new chord track approach)
+// Insert a chord in the current measure (chord track approach)
 export function insertChordInCurrentMeasureAction() {
   const measures = doc.measures.get();
   const caret = doc.caret.get();
@@ -196,212 +184,146 @@ function findNoteLeftOfCaret(): number | null {
 
 const unregisterShortcuts: (() => void)[] = [];
 
-// Helper to gate shortcuts by chord mode
-function gated(callback: () => void) {
-  return () => {
-    if (interfaceState.chordMode.get() !== null) return;
-    callback();
-  };
-}
-
 export function registerShortcuts() {
   // Pitch letters (a-g)
   for (const letter of ["a", "b", "c", "d", "e", "f", "g"] as const) {
     unregisterShortcuts.push(
-      registerKeyboardShortcut(
-        [letter],
-        gated(() => insertNoteAction(letter.toUpperCase() as PitchLetter))
+      registerKeyboardShortcut([letter], () =>
+        insertNoteAction(letter.toUpperCase() as PitchLetter)
       )
     );
   }
 
   // Rest (r)
   unregisterShortcuts.push(
-    registerKeyboardShortcut(
-      ["r"],
-      gated(() => insertRestAction())
-    )
+    registerKeyboardShortcut(["r"], () => insertRestAction())
   );
 
   // Duration keys (4, 8, 6)
   unregisterShortcuts.push(
-    registerKeyboardShortcut(
-      ["digit4"],
-      gated(() => interfaceState.setCurrentDurationFromKey("4"))
+    registerKeyboardShortcut(["digit4"], () =>
+      interfaceState.setCurrentDurationFromKey("4")
     )
   );
   unregisterShortcuts.push(
-    registerKeyboardShortcut(
-      ["digit8"],
-      gated(() => interfaceState.setCurrentDurationFromKey("8"))
+    registerKeyboardShortcut(["digit8"], () =>
+      interfaceState.setCurrentDurationFromKey("8")
     )
   );
   unregisterShortcuts.push(
-    registerKeyboardShortcut(
-      ["digit6"],
-      gated(() => interfaceState.setCurrentDurationFromKey("6"))
+    registerKeyboardShortcut(["digit6"], () =>
+      interfaceState.setCurrentDurationFromKey("6")
     )
   );
 
   // Accidentals: ] for sharp, [ for flat
   unregisterShortcuts.push(
-    registerKeyboardShortcut(
-      ["bracketright"],
-      gated(() => toggleAccidentalAction("#"))
+    registerKeyboardShortcut(["bracketright"], () =>
+      toggleAccidentalAction("#")
     )
   );
   unregisterShortcuts.push(
-    registerKeyboardShortcut(
-      ["bracketleft"],
-      gated(() => toggleAccidentalAction("b"))
-    )
+    registerKeyboardShortcut(["bracketleft"], () => toggleAccidentalAction("b"))
   );
 
   // Navigation
   unregisterShortcuts.push(
-    registerKeyboardShortcut(
-      ["shift", "arrowleft"],
-      gated(() => doc.moveCaretLeft({ extendSelection: true }))
+    registerKeyboardShortcut(["shift", "arrowleft"], () =>
+      doc.moveCaretLeft({ extendSelection: true })
     )
   );
   unregisterShortcuts.push(
-    registerKeyboardShortcut(
-      ["shift", "arrowright"],
-      gated(() => doc.moveCaretRight({ extendSelection: true }))
+    registerKeyboardShortcut(["shift", "arrowright"], () =>
+      doc.moveCaretRight({ extendSelection: true })
     )
   );
   unregisterShortcuts.push(
-    registerKeyboardShortcut(
-      ["arrowleft"],
-      gated(() => doc.moveCaretLeft({ extendSelection: false }))
+    registerKeyboardShortcut(["arrowleft"], () =>
+      doc.moveCaretLeft({ extendSelection: false })
     )
   );
   unregisterShortcuts.push(
-    registerKeyboardShortcut(
-      ["arrowright"],
-      gated(() => doc.moveCaretRight({ extendSelection: false }))
+    registerKeyboardShortcut(["arrowright"], () =>
+      doc.moveCaretRight({ extendSelection: false })
     )
   );
 
   // Pitch editing: octave transpose
   unregisterShortcuts.push(
-    registerKeyboardShortcut(
-      ["arrowup"],
-      gated(() => doc.transposeSelectionOrLeftNote(12))
+    registerKeyboardShortcut(["arrowup"], () =>
+      doc.transposeSelectionOrLeftNote(12)
     )
   );
   unregisterShortcuts.push(
-    registerKeyboardShortcut(
-      ["arrowdown"],
-      gated(() => doc.transposeSelectionOrLeftNote(-12))
+    registerKeyboardShortcut(["arrowdown"], () =>
+      doc.transposeSelectionOrLeftNote(-12)
     )
   );
 
   // Pitch editing: semitone transpose
   unregisterShortcuts.push(
-    registerKeyboardShortcut(
-      ["meta", "arrowup"],
-      gated(() => doc.transposeSelectionOrLeftNote(1))
+    registerKeyboardShortcut(["meta", "arrowup"], () =>
+      doc.transposeSelectionOrLeftNote(1)
     )
   );
   unregisterShortcuts.push(
-    registerKeyboardShortcut(
-      ["meta", "arrowdown"],
-      gated(() => doc.transposeSelectionOrLeftNote(-1))
+    registerKeyboardShortcut(["meta", "arrowdown"], () =>
+      doc.transposeSelectionOrLeftNote(-1)
     )
   );
 
   // Naturalize
   unregisterShortcuts.push(
-    registerKeyboardShortcut(
-      ["n"],
-      gated(() => doc.naturalizeSelectionOrLeftNote())
-    )
+    registerKeyboardShortcut(["n"], () => doc.naturalizeSelectionOrLeftNote())
   );
 
   // Delete
   unregisterShortcuts.push(
-    registerKeyboardShortcut(
-      ["backspace"],
-      gated(() => doc.deleteBackward())
-    )
+    registerKeyboardShortcut(["backspace"], () => doc.deleteBackward())
   );
   unregisterShortcuts.push(
-    registerKeyboardShortcut(
-      ["delete"],
-      gated(() => doc.deleteForward())
-    )
+    registerKeyboardShortcut(["delete"], () => doc.deleteForward())
   );
 
-  // Chord mode entry (quote key) - legacy
+  // Insert chord in current measure (chord track)
   unregisterShortcuts.push(
-    registerKeyboardShortcut(
-      ["shift", "quote"],
-      gated(() => interfaceState.enterChordMode(doc.caret.get()))
-    )
-  );
-
-  // Insert chord in current measure (new chord track)
-  unregisterShortcuts.push(
-    registerKeyboardShortcut(
-      ["meta", "shift", "c"],
-      gated(() => insertChordInCurrentMeasureAction())
+    registerKeyboardShortcut(["meta", "shift", "c"], () =>
+      insertChordInCurrentMeasureAction()
     )
   );
 
   // Tie toggle
   unregisterShortcuts.push(
-    registerKeyboardShortcut(
-      ["t"],
-      gated(() => doc.toggleTieAcrossCaret())
-    )
+    registerKeyboardShortcut(["t"], () => doc.toggleTieAcrossCaret())
   );
 
   // Extend (dash key)
   unregisterShortcuts.push(
-    registerKeyboardShortcut(
-      ["minus"],
-      gated(() => extendLeftNoteAction())
-    )
+    registerKeyboardShortcut(["minus"], () => extendLeftNoteAction())
   );
 
   // Undo/Redo
   unregisterShortcuts.push(
-    registerKeyboardShortcut(
-      ["meta", "shift", "z"],
-      gated(() => doc.redo())
-    )
+    registerKeyboardShortcut(["meta", "shift", "z"], () => doc.redo())
   );
 
   unregisterShortcuts.push(
-    registerKeyboardShortcut(
-      ["meta", "z"],
-      gated(() => doc.undo())
-    )
+    registerKeyboardShortcut(["meta", "z"], () => doc.undo())
   );
 
   // Copy
   unregisterShortcuts.push(
-    registerKeyboardShortcut(
-      ["meta", "c"],
-      gated(() => copyAction())
-    )
+    registerKeyboardShortcut(["meta", "c"], () => copyAction())
   );
 
   // Cut
   unregisterShortcuts.push(
-    registerKeyboardShortcut(
-      ["meta", "x"],
-      gated(() => cutAction())
-    )
+    registerKeyboardShortcut(["meta", "x"], () => cutAction())
   );
 
   // Paste
   unregisterShortcuts.push(
-    registerKeyboardShortcut(
-      ["meta", "v"],
-      gated(() => pasteAction())
-    )
+    registerKeyboardShortcut(["meta", "v"], () => pasteAction())
   );
 }
 

@@ -48,11 +48,9 @@ export type MelodyEvent =
       id: string;
       duration: Duration;
       pitch: Pitch;
-      chord?: string;
       tieToNext?: true;
     }
-  | { kind: "rest"; id: string; duration: Duration }
-  | { kind: "chordAnchor"; id: string; chord: string };
+  | { kind: "rest"; id: string; duration: Duration };
 
 // Indices into the melody event sequence.
 export type Selection = {

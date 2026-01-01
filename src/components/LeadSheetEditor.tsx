@@ -2,8 +2,6 @@ import React, { useRef, useEffect, useState } from "react";
 import { Box, Input } from "@chakra-ui/react";
 import { useObservable } from "../lib/observable";
 import { doc } from "../lead-sheet/Document";
-import { interfaceState } from "../lead-sheet/InterfaceState";
-import { commitChordAction } from "../lead-sheet/actions";
 import { renderLeadSheet, LeadSheetLayout } from "../lead-sheet/vexflow-render";
 import { ChordTrackOverlay } from "./ChordTrackOverlay";
 
@@ -12,7 +10,6 @@ export function LeadSheetEditor() {
   const shadowHostRef = useRef<HTMLDivElement>(null);
   const shadowRenderContainerRef = useRef<HTMLDivElement | null>(null);
   const editorRef = useRef<HTMLDivElement>(null);
-  const chordInputRef = useRef<HTMLInputElement>(null);
 
   // Subscribe to model state
   const events = useObservable(doc.events);
@@ -20,7 +17,6 @@ export function LeadSheetEditor() {
   const timeSignature = useObservable(doc.timeSignature);
   const caret = useObservable(doc.caret);
   const normalizedSelection = useObservable(doc.normalizedSelection);
-  const chordMode = useObservable(interfaceState.chordMode);
   const chordTrack = useObservable(doc.chords);
   const eventStartUnits = useObservable(doc.eventStartUnits);
   const documentEndUnit = useObservable(doc.documentEndUnit);
@@ -101,7 +97,7 @@ export function LeadSheetEditor() {
       selection: normalizedSelection,
       width: containerSize.width,
       height: containerSize.height,
-      showCaret: chordMode === null,
+      showCaret: true,
       chordTrack,
       eventStartUnits,
       documentEndUnit,
@@ -116,18 +112,10 @@ export function LeadSheetEditor() {
     normalizedSelection,
     containerSize,
     shadowReady,
-    chordMode,
     chordTrack,
     eventStartUnits,
     documentEndUnit,
   ]);
-
-  // Focus chord input when chord mode opens
-  useEffect(() => {
-    if (chordMode && chordInputRef.current) {
-      chordInputRef.current.focus();
-    }
-  }, [chordMode]);
 
   // Handle clicks on rendered notes/rests in the shadow DOM
   useEffect(() => {
@@ -165,22 +153,6 @@ export function LeadSheetEditor() {
       shadowRoot.removeEventListener("click", handleClick);
     };
   }, []);
-
-  // Handle chord input changes (legacy modal mode)
-  function handleChordInputChange(e: React.ChangeEvent<HTMLInputElement>) {
-    interfaceState.setChordDraft(e.target.value);
-  }
-
-  // Handle chord input key events (legacy modal mode)
-  function handleChordInputKeyDown(e: React.KeyboardEvent<HTMLInputElement>) {
-    if (e.key === "Enter") {
-      e.preventDefault();
-      commitChordAction();
-    } else if (e.key === "Escape") {
-      e.preventDefault();
-      interfaceState.cancelChordMode();
-    }
-  }
 
   // Handle chord region editing
   function handleChordEditChange(e: React.ChangeEvent<HTMLInputElement>) {
@@ -268,30 +240,6 @@ export function LeadSheetEditor() {
             onChordClick={handleChordClick}
           />
         </div>
-
-        {/* Chord input overlay (legacy modal mode) */}
-        {chordMode && (
-          <Box
-            position="absolute"
-            top="20px"
-            left="50%"
-            transform="translateX(-50%)"
-            zIndex={10}
-          >
-            <Input
-              ref={chordInputRef}
-              value={chordMode.text}
-              onChange={handleChordInputChange}
-              onKeyDown={handleChordInputKeyDown}
-              placeholder="Enter chord (e.g. Cmaj7)"
-              size="sm"
-              width="200px"
-              bg="white"
-              border="2px solid"
-              borderColor="blue.500"
-            />
-          </Box>
-        )}
 
         {/* Chord region edit overlay */}
         {editingChordId && (

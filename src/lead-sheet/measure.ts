@@ -23,9 +23,7 @@ export function computeMeasures(
   for (let i = 0; i < events.length; i++) {
     const event = events[i]!;
 
-    // Chord anchors contribute 0 units
-    const eventUnits =
-      event.kind === "chordAnchor" ? 0 : durationToUnits(event.duration);
+    const eventUnits = durationToUnits(event.duration);
 
     // Check if adding this event would exceed capacity
     if (currentFilledUnits + eventUnits > capacityUnits) {
@@ -138,9 +136,7 @@ export function computeEventStartUnits(events: MelodyEvent[]): Unit[] {
   for (const event of events) {
     startUnits.push(currentUnit);
 
-    // Chord anchors contribute 0 units
-    const eventUnits =
-      event.kind === "chordAnchor" ? 0 : durationToUnits(event.duration);
+    const eventUnits = durationToUnits(event.duration);
     currentUnit += eventUnits;
   }
 
@@ -152,9 +148,7 @@ export function computeMelodyEndUnit(events: MelodyEvent[]): Unit {
   let currentUnit: Unit = 0;
 
   for (const event of events) {
-    // Chord anchors contribute 0 units
-    const eventUnits =
-      event.kind === "chordAnchor" ? 0 : durationToUnits(event.duration);
+    const eventUnits = durationToUnits(event.duration);
     currentUnit += eventUnits;
   }
 
