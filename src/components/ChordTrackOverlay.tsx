@@ -292,8 +292,10 @@ function ChordBox({
   onChordClick,
   onHandleDragStart,
 }: ChordBoxProps) {
+  const [isHovered, setIsHovered] = useState(false);
+
   function handleClick(e: React.MouseEvent) {
-    e.stopPropagation(); // Prevent background click from clearing selection
+    e.stopPropagation();
     onChordClick(
       segment.regionId,
       segment.text,
@@ -316,72 +318,101 @@ function ChordBox({
     onHandleDragStart(segment.regionId, "right");
   }
 
+  const showBackground = isSelected || isHovered || isDragging;
+
   return (
-    <>
+    <Box
+      position="absolute"
+      left={`${segment.x - 3}px`}
+      top={`${segment.y}px`}
+      width={`${segment.width + 6}px`}
+      height={`${segment.height}px`}
+      onMouseEnter={() => setIsHovered(true)}
+      onMouseLeave={() => setIsHovered(false)}
+      pointerEvents="none"
+    >
       {/* Main chord box */}
       <Box
         position="absolute"
-        left={`${segment.x}px`}
-        top={`${segment.y}px`}
+        left="3px"
+        top="0"
         width={`${segment.width}px`}
         height={`${segment.height}px`}
-        bg={isSelected ? "rgba(59, 130, 246, 0.4)" : "rgba(147, 197, 253, 0.3)"}
+        bg={
+          showBackground
+            ? isSelected
+              ? "rgba(59, 130, 246, 0.4)"
+              : "rgba(147, 197, 253, 0.3)"
+            : "transparent"
+        }
         border={
-          isSelected
-            ? "2px solid rgb(37, 99, 235)"
-            : "1px solid rgb(59, 130, 246)"
+          showBackground
+            ? isSelected
+              ? "2px solid rgb(37, 99, 235)"
+              : "1px solid rgb(59, 130, 246)"
+            : "none"
         }
         borderRadius="4px"
         cursor="pointer"
         pointerEvents="auto"
         onClick={handleClick}
-      />
-
-      {/* Chord text */}
-      <Box
-        position="absolute"
-        left={`${segment.x + 6}px`}
-        top={`${segment.y + segment.height / 2 - 7}px`}
-        fontFamily="Arial, sans-serif"
-        fontSize="14px"
-        fontWeight="600"
-        color={isSelected ? "rgb(29, 78, 216)" : "rgb(30, 64, 175)"}
-        pointerEvents="none"
-        userSelect="none"
+        display="flex"
+        alignItems="center"
+        justifyContent="center"
       >
-        {segment.text}
+        {/* Chord text */}
+        <Box
+          fontFamily="Georgia, 'Times New Roman', serif"
+          fontSize="16px"
+          fontWeight="500"
+          color={
+            showBackground
+              ? isSelected
+                ? "rgb(29, 78, 216)"
+                : "rgb(30, 64, 175)"
+              : "#1a1a1a"
+          }
+          pointerEvents="none"
+          userSelect="none"
+        >
+          {segment.text}
+        </Box>
       </Box>
 
       {/* Left handle */}
-      <Box
-        position="absolute"
-        left={`${segment.x - 3}px`}
-        top={`${segment.y + segment.height / 2 - 8}px`}
-        width="6px"
-        height="16px"
-        bg={isSelected ? "rgb(37, 99, 235)" : "rgb(59, 130, 246)"}
-        borderRadius="2px"
-        cursor="ew-resize"
-        pointerEvents="auto"
-        onClick={(e) => e.stopPropagation()}
-        onPointerDown={handleLeftHandlePointerDown}
-      />
+      {showBackground && (
+        <Box
+          position="absolute"
+          left="0"
+          top={`${segment.height / 2 - 8}px`}
+          width="6px"
+          height="16px"
+          bg={isSelected ? "rgb(37, 99, 235)" : "rgb(59, 130, 246)"}
+          borderRadius="2px"
+          cursor="ew-resize"
+          pointerEvents="auto"
+          onClick={(e) => e.stopPropagation()}
+          onPointerDown={handleLeftHandlePointerDown}
+        />
+      )}
 
       {/* Right handle */}
-      <Box
-        position="absolute"
-        left={`${segment.x + segment.width - 3}px`}
-        top={`${segment.y + segment.height / 2 - 8}px`}
-        width="6px"
-        height="16px"
-        bg={isSelected ? "rgb(37, 99, 235)" : "rgb(59, 130, 246)"}
-        borderRadius="2px"
-        cursor="ew-resize"
-        pointerEvents="auto"
-        onClick={(e) => e.stopPropagation()}
-        onPointerDown={handleRightHandlePointerDown}
-      />
-    </>
+      {showBackground && (
+        <Box
+          position="absolute"
+          left={`${segment.width + 3}px`}
+          top={`${segment.height / 2 - 8}px`}
+          width="6px"
+          height="16px"
+          bg={isSelected ? "rgb(37, 99, 235)" : "rgb(59, 130, 246)"}
+          borderRadius="2px"
+          cursor="ew-resize"
+          pointerEvents="auto"
+          onClick={(e) => e.stopPropagation()}
+          onPointerDown={handleRightHandlePointerDown}
+        />
+      )}
+    </Box>
   );
 }
 
