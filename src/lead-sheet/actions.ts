@@ -1,7 +1,7 @@
 import { registerKeyboardShortcut } from "../lib/keyboard-shortcut-manager";
 import { doc } from "./Document";
 import { interfaceState } from "./InterfaceState";
-import { PitchLetter, Pitch, pitchToMidi } from "./types";
+import { PitchLetter, Pitch, pitchToMidi, MelodyEvent } from "./types";
 
 // Default octave for first note (C4 = MIDI 60)
 const DEFAULT_OCTAVE = 4;
@@ -95,6 +95,48 @@ export function commitChordAction() {
 export function extendLeftNoteAction() {
   const duration = interfaceState.currentDuration.get();
   doc.extendLeftNoteByDuration(duration);
+}
+
+export async function copyAction() {
+  const events = doc.getSelectedEvents();
+  if (events.length === 0) return;
+
+  try {
+    await navigator.clipboard.writeText(JSON.stringify(events));
+  } catch (e) {
+    console.error("Failed to copy", e);
+  }
+}
+
+export async function cutAction() {
+  const events = doc.getSelectedEvents();
+  if (events.length === 0) return;
+
+  try {
+    await navigator.clipboard.writeText(JSON.stringify(events));
+    doc.withUndoStep(() => {
+      doc.deleteSelection();
+    });
+  } catch (e) {
+    console.error("Failed to cut", e);
+  }
+}
+
+export async function pasteAction() {
+  try {
+    const text = await navigator.clipboard.readText();
+    if (!text) return;
+
+    const events = JSON.parse(text) as MelodyEvent[];
+    if (Array.isArray(events)) {
+      // Check if it looks like melody events
+      if (events.length > 0 && typeof events[0].kind === "string") {
+        doc.pasteEvents(events);
+      }
+    }
+  } catch (e) {
+    console.error("Failed to paste", e);
+  }
 }
 
 // Helper functions (similar to Document's private methods but for actions)
@@ -197,18 +239,6 @@ export function registerShortcuts() {
   // Navigation
   unregisterShortcuts.push(
     registerKeyboardShortcut(
-      ["arrowleft"],
-      gated(() => doc.moveCaretLeft({ extendSelection: false }))
-    )
-  );
-  unregisterShortcuts.push(
-    registerKeyboardShortcut(
-      ["arrowright"],
-      gated(() => doc.moveCaretRight({ extendSelection: false }))
-    )
-  );
-  unregisterShortcuts.push(
-    registerKeyboardShortcut(
       ["shift", "arrowleft"],
       gated(() => doc.moveCaretLeft({ extendSelection: true }))
     )
@@ -217,6 +247,18 @@ export function registerShortcuts() {
     registerKeyboardShortcut(
       ["shift", "arrowright"],
       gated(() => doc.moveCaretRight({ extendSelection: true }))
+    )
+  );
+  unregisterShortcuts.push(
+    registerKeyboardShortcut(
+      ["arrowleft"],
+      gated(() => doc.moveCaretLeft({ extendSelection: false }))
+    )
+  );
+  unregisterShortcuts.push(
+    registerKeyboardShortcut(
+      ["arrowright"],
+      gated(() => doc.moveCaretRight({ extendSelection: false }))
     )
   );
 
@@ -306,6 +348,30 @@ export function registerShortcuts() {
     registerKeyboardShortcut(
       ["meta", "z"],
       gated(() => doc.undo())
+    )
+  );
+
+  // Copy
+  unregisterShortcuts.push(
+    registerKeyboardShortcut(
+      ["meta", "c"],
+      gated(() => copyAction())
+    )
+  );
+
+  // Cut
+  unregisterShortcuts.push(
+    registerKeyboardShortcut(
+      ["meta", "x"],
+      gated(() => cutAction())
+    )
+  );
+
+  // Paste
+  unregisterShortcuts.push(
+    registerKeyboardShortcut(
+      ["meta", "v"],
+      gated(() => pasteAction())
     )
   );
 }

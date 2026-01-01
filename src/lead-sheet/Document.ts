@@ -181,6 +181,13 @@ export class Document {
     this.caret.set(eventIdx + 1);
   }
 
+  // Set selection explicitly
+  setSelection(anchorIdx: number, headIdx: number) {
+    this.selection.set({ anchorIdx, headIdx });
+    // Caret follows head
+    this.caret.set(headIdx);
+  }
+
   moveCaretLeft(opts: { extendSelection: boolean }) {
     const currentCaret = this.caret.get();
     if (currentCaret <= 0) return;
@@ -323,7 +330,7 @@ export class Document {
   }
 
   // Delete selection helper
-  private deleteSelection(): boolean {
+  deleteSelection(): boolean {
     const normalized = this.normalizedSelection.get();
     if (!normalized) return false;
 
@@ -336,6 +343,45 @@ export class Document {
     this.selection.set(null);
 
     return true;
+  }
+
+  // Get currently selected events (for copy/cut)
+  getSelectedEvents(): MelodyEvent[] {
+    const normalized = this.normalizedSelection.get();
+    if (!normalized) return [];
+
+    const events = this.events.get();
+    // Return shallow copies
+    return events
+      .slice(normalized.start, normalized.end)
+      .map((e) => ({ ...e }));
+  }
+
+  // Paste events at the caret
+  pasteEvents(pastedEvents: MelodyEvent[]) {
+    if (pastedEvents.length === 0) return;
+
+    return this.withUndoStep(() => {
+      // If there's a selection, delete it first (overwrite)
+      this.deleteSelection();
+
+      const caret = this.caret.get();
+      const events = this.events.get();
+
+      // Regenerate IDs for pasted events to ensure uniqueness
+      const newEventsToInsert = pastedEvents.map((e) => ({
+        ...e,
+        id: generateEventId(),
+      }));
+
+      const newEvents = [...events];
+      newEvents.splice(caret, 0, ...newEventsToInsert);
+
+      this.events.set(newEvents);
+
+      // Move caret to end of pasted content
+      this.caret.set(caret + newEventsToInsert.length);
+    });
   }
 
   insertNote(pitch: Pitch, duration: string) {

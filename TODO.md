@@ -7,11 +7,6 @@ Needed for MVP transcription
 Nice to have for MVP transcription
 
 - [ ] Better chord entry
-- [ ] Selection
-  - [ ] Delete
-  - [ ] Copy
-  - [ ] Cut
-  - [ ] Paste
 
 Needed for multiple MVP transcriptions
 
@@ -20,4 +15,10 @@ Needed for multiple MVP transcriptions
 
 Needed for efficiency?
 
+- [x] Selection
+  - [x] Delete
+  - [x] Copy
+  - [x] Cut
+  - [x] Paste
+- [ ] Drag to select
 - [ ] Make it feel like a document

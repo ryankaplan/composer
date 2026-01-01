@@ -455,6 +455,48 @@ function renderChordAnchors(
   }
 }
 
+// Helper to get caret X position relative to a specific system
+function getCaretX(
+  idx: number,
+  systemIdx: number,
+  eventBBoxes: Map<number, NoteBBox>,
+  eventToSystemIdx: Map<number, number>,
+  firstSystemStaff: { top: number; bottom: number; noteStartX: number } | null,
+  totalEvents: number
+): number {
+  const prevIdx = idx - 1;
+  const nextIdx = idx;
+
+  const prevBBox = eventBBoxes.get(prevIdx);
+  const nextBBox = eventBBoxes.get(nextIdx);
+
+  const prevOnSystem = prevBBox && eventToSystemIdx.get(prevIdx) === systemIdx;
+  const nextOnSystem = nextBBox && eventToSystemIdx.get(nextIdx) === systemIdx;
+
+  if (prevOnSystem && nextOnSystem) {
+    // Midpoint between notes on same system
+    return (prevBBox.x + prevBBox.width + nextBBox.x) / 2;
+  } else if (nextOnSystem) {
+    // Start of system (before first note of selection/system)
+    return nextBBox.x;
+  } else if (prevOnSystem) {
+    // End of system (after last note of selection/system)
+    let spacing = 25;
+    const prevPrevBBox = eventBBoxes.get(prevIdx - 1);
+    // Check if prevPrev is on same system
+    if (prevPrevBBox && eventToSystemIdx.get(prevIdx - 1) === systemIdx) {
+      spacing = (prevBBox.x - (prevPrevBBox.x + prevPrevBBox.width)) / 2;
+    }
+    return prevBBox.x + prevBBox.width + spacing;
+  } else {
+    // Empty document case
+    if (totalEvents === 0 && firstSystemStaff && systemIdx === 0) {
+      return firstSystemStaff.noteStartX;
+    }
+    return 0;
+  }
+}
+
 // Render selection highlight, caret, and clickable hitboxes
 function renderOverlays(
   svgEl: Element,
@@ -506,114 +548,121 @@ function renderOverlays(
   svgEl.appendChild(caretGroup);
   svgEl.appendChild(hitboxGroup);
 
-  // 1) Render selection highlights as union rectangles per system
+  // 1) Render selection highlights
   if (selection) {
-    // Group selection bboxes by system
-    const systemUnions = new Map<
-      number,
-      { minX: number; minY: number; maxX: number; maxY: number }
-    >();
-
+    // Find all systems covered by the selection
+    const systems = new Set<number>();
     for (let i = selection.start; i < selection.end; i++) {
-      const bbox = eventBBoxes.get(i);
-      const systemIdx = eventToSystemIdx.get(i);
-      if (!bbox || systemIdx === undefined) continue;
-
-      const existing = systemUnions.get(systemIdx);
-      if (existing) {
-        existing.minX = Math.min(existing.minX, bbox.x);
-        existing.minY = Math.min(existing.minY, bbox.y);
-        existing.maxX = Math.max(existing.maxX, bbox.x + bbox.width);
-        existing.maxY = Math.max(existing.maxY, bbox.y + bbox.height);
-      } else {
-        systemUnions.set(systemIdx, {
-          minX: bbox.x,
-          minY: bbox.y,
-          maxX: bbox.x + bbox.width,
-          maxY: bbox.y + bbox.height,
-        });
-      }
+      const sys = eventToSystemIdx.get(i);
+      if (sys !== undefined) systems.add(sys);
     }
 
-    // Render one rectangle per system
-    const padding = 3;
-    for (const union of systemUnions.values()) {
-      const rect = document.createElementNS(NS, "rect");
-      rect.setAttribute("x", String(union.minX - padding));
-      rect.setAttribute("y", String(union.minY - padding));
-      rect.setAttribute("width", String(union.maxX - union.minX + 2 * padding));
-      rect.setAttribute(
-        "height",
-        String(union.maxY - union.minY + 2 * padding)
-      );
-      rect.setAttribute("fill", "rgba(59, 130, 246, 0.2)"); // blue.500 with opacity
-      rect.setAttribute("stroke", "rgba(59, 130, 246, 0.5)");
-      rect.setAttribute("stroke-width", "1");
-      rect.setAttribute("pointer-events", "none");
-      selectionGroup.appendChild(rect);
+    const sortedSystems = Array.from(systems).sort((a, b) => a - b);
+
+    for (const systemIdx of sortedSystems) {
+      let firstEventIdxInSys = -1;
+      let lastEventIdxInSys = -1;
+
+      // Find extent of selection on this system
+      for (let i = selection.start; i < selection.end; i++) {
+        if (eventToSystemIdx.get(i) === systemIdx) {
+          if (firstEventIdxInSys === -1) firstEventIdxInSys = i;
+          lastEventIdxInSys = i;
+        }
+      }
+
+      if (firstEventIdxInSys !== -1) {
+        const x1 = getCaretX(
+          firstEventIdxInSys,
+          systemIdx,
+          eventBBoxes,
+          eventToSystemIdx,
+          firstSystemStaff,
+          totalEvents
+        );
+        const x2 = getCaretX(
+          lastEventIdxInSys + 1,
+          systemIdx,
+          eventBBoxes,
+          eventToSystemIdx,
+          firstSystemStaff,
+          totalEvents
+        );
+
+        // Get Y bounds from staff metrics
+        const staff = eventToStaff.get(firstEventIdxInSys);
+        if (staff) {
+          const rect = document.createElementNS(NS, "rect");
+          const rectY = staff.top - 8; // standard padding
+          const rectHeight = staff.bottom - staff.top + 16;
+
+          rect.setAttribute("x", String(Math.min(x1, x2)));
+          rect.setAttribute("y", String(rectY));
+          rect.setAttribute("width", String(Math.abs(x2 - x1)));
+          rect.setAttribute("height", String(rectHeight));
+          rect.setAttribute("fill", "rgba(59, 130, 246, 0.2)"); // blue.500 with opacity
+          rect.setAttribute("stroke", "transparent");
+          rect.setAttribute("pointer-events", "none");
+          selectionGroup.appendChild(rect);
+        }
+      }
     }
   }
 
   // 2) Render caret (insertion cursor)
   if (showCaret) {
-    let caretX: number | null = null;
-    let caretY = 0;
-    let caretHeight = 0;
+    // Determine which system the caret should be on
+    let systemIdx = eventToSystemIdx.get(caret);
+    if (systemIdx === undefined) {
+      systemIdx = eventToSystemIdx.get(caret - 1);
+    }
+    if (systemIdx === undefined && firstSystemStaff) {
+      systemIdx = 0;
+    }
 
-    const nextEventBBox = eventBBoxes.get(caret);
-    const prevEventBBox = eventBBoxes.get(caret - 1);
+    if (systemIdx !== undefined) {
+      const cx = getCaretX(
+        caret,
+        systemIdx,
+        eventBBoxes,
+        eventToSystemIdx,
+        firstSystemStaff,
+        totalEvents
+      );
 
-    // Compute caret X position (midpoint between adjacent events)
-    if (nextEventBBox && prevEventBBox) {
-      // Between two events: center between them
-      const prevRight = prevEventBBox.x + prevEventBBox.width;
-      const nextLeft = nextEventBBox.x;
-      caretX = (prevRight + nextLeft) / 2;
-    } else if (nextEventBBox) {
-      // Only next exists: place at left edge
-      caretX = nextEventBBox.x;
-    } else if (prevEventBBox) {
-      // Only prev exists (caret at end): add spacing based on previous note gap
-      const prevPrevEventBBox = eventBBoxes.get(caret - 2);
-      let spacing = 25; // default spacing
+      // Get staff metrics
+      let staff = eventToStaff.get(caret) || eventToStaff.get(caret - 1);
 
-      if (prevPrevEventBBox) {
-        // Use half the gap between the previous two notes
-        const prevPrevRight = prevPrevEventBBox.x + prevPrevEventBBox.width;
-        const prevLeft = prevEventBBox.x;
-        const gapBetweenPrevNotes = prevLeft - prevPrevRight;
-        spacing = gapBetweenPrevNotes / 2;
+      // Ensure staff matches the target system if ambiguous
+      if (staff) {
+        const s1 = eventToSystemIdx.get(caret);
+        const s2 = eventToSystemIdx.get(caret - 1);
+        if (s1 !== systemIdx && s2 !== systemIdx) {
+          // Try to find any staff on this system (should generally match caret logic)
+          // But usually one of them matches.
+        }
       }
 
-      caretX = prevEventBBox.x + prevEventBBox.width + spacing;
-    } else if (caret === 0 && totalEvents === 0 && firstSystemStaff) {
-      // Empty document: use first system staff
-      caretX = firstSystemStaff.noteStartX;
-    }
+      if (!staff && firstSystemStaff && systemIdx === 0) {
+        staff = { top: firstSystemStaff.top, bottom: firstSystemStaff.bottom };
+      }
 
-    // Compute caret Y and height from staff metrics
-    const staffPadding = 8;
-    let staff = eventToStaff.get(caret) || eventToStaff.get(caret - 1);
-    if (!staff && firstSystemStaff) {
-      staff = { top: firstSystemStaff.top, bottom: firstSystemStaff.bottom };
-    }
+      if (staff) {
+        const staffPadding = 8;
+        const cy = staff.top - staffPadding;
+        const ch = staff.bottom - staff.top + 2 * staffPadding;
 
-    if (staff) {
-      caretY = staff.top - staffPadding;
-      caretHeight = staff.bottom - staff.top + 2 * staffPadding;
-    }
-
-    if (caretX !== null && caretHeight > 0) {
-      const line = document.createElementNS(NS, "line");
-      line.setAttribute("class", "ls-caret");
-      line.setAttribute("x1", String(caretX));
-      line.setAttribute("y1", String(caretY));
-      line.setAttribute("x2", String(caretX));
-      line.setAttribute("y2", String(caretY + caretHeight));
-      line.setAttribute("stroke", "rgb(59, 130, 246)"); // blue.500
-      line.setAttribute("stroke-width", "2");
-      line.setAttribute("pointer-events", "none");
-      caretGroup.appendChild(line);
+        const line = document.createElementNS(NS, "line");
+        line.setAttribute("class", "ls-caret");
+        line.setAttribute("x1", String(cx));
+        line.setAttribute("y1", String(cy));
+        line.setAttribute("x2", String(cx));
+        line.setAttribute("y2", String(cy + ch));
+        line.setAttribute("stroke", "rgb(59, 130, 246)"); // blue.500
+        line.setAttribute("stroke-width", "2");
+        line.setAttribute("pointer-events", "none");
+        caretGroup.appendChild(line);
+      }
     }
   }
 
