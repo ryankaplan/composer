@@ -165,12 +165,10 @@ export function padMeasuresToEndUnit(
   const capacityUnits = getBarCapacity(timeSignature);
   const targetMeasureCount = Math.ceil(targetEndUnit / capacityUnits);
 
-  // If we already have enough measures, return as is
   if (melodyMeasures.length >= targetMeasureCount) {
     return melodyMeasures;
   }
 
-  // Create padded measures
   const paddedMeasures = [...melodyMeasures];
 
   for (let i = melodyMeasures.length; i < targetMeasureCount; i++) {

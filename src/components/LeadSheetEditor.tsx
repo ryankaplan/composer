@@ -1,11 +1,12 @@
 import React, { useRef, useEffect, useState } from "react";
-import { Box, Input, Button } from "@chakra-ui/react";
+import { Box, Input } from "@chakra-ui/react";
 import { useObservable } from "../lib/observable";
 import { doc } from "../lead-sheet/Document";
 import { renderLeadSheet, LeadSheetLayout } from "../lead-sheet/vexflow-render";
 import { ChordTrackOverlay } from "./ChordTrackOverlay";
 import { interfaceState } from "../lead-sheet/InterfaceState";
 import { matchChords } from "../lead-sheet/chord-autocomplete";
+import { computeMeasures } from "../lead-sheet/measure";
 
 export function LeadSheetEditor() {
   const viewportRef = useRef<HTMLDivElement>(null);
@@ -279,10 +280,30 @@ export function LeadSheetEditor() {
     doc.resizeChordRegion(regionId, newStart, newEnd);
   }
 
-  // Handle extend document by 1 bar
-  function handleExtendDocument() {
+  // Handle chord append (insert chord after last chord)
+  function handleChordAppend(
+    start: number,
+    end: number,
+    text: string,
+    x: number,
+    y: number,
+    width: number,
+    height: number
+  ) {
+    const chordId = doc.insertChordRegionAbsolute(start, end, text);
+    if (!chordId) return;
+
+    // Start the chord editing flow immediately
+    handleChordClick(chordId, text, x, y, width, height);
+  }
+
+  // Handle measure append (extend document by 1 bar)
+  function handleMeasureAppend() {
     doc.extendDocumentByBars(1);
   }
+
+  // Compute melody measure count (un-padded)
+  const melodyMeasureCount = computeMeasures(events, timeSignature).length;
 
   return (
     <Box width="100%" height="100%" position="relative">
@@ -349,8 +370,24 @@ export function LeadSheetEditor() {
               onBackgroundClick={handleChordBackgroundClick}
               onMeasureInsertClick={handleMeasureInsertClick}
               onResizeCommit={handleResizeCommit}
+              onChordAppend={handleChordAppend}
             />
           )}
+
+          {/* Measure append box (right of last melody measure) */}
+          {layout &&
+            melodyMeasureCount > 0 &&
+            measures.length === melodyMeasureCount &&
+            (() => {
+              const rect = computeVirtualMeasureRect(
+                layout,
+                melodyMeasureCount
+              );
+              if (!rect) return null;
+              return (
+                <MeasureAppendBox rect={rect} onClick={handleMeasureAppend} />
+              );
+            })()}
         </div>
 
         {/* Chord region edit overlay */}
@@ -429,21 +466,89 @@ export function LeadSheetEditor() {
               </Box>
             );
           })()}
-
-        {/* Extend document button */}
-        <Button
-          position="absolute"
-          bottom="20px"
-          right="20px"
-          size="sm"
-          colorScheme="blue"
-          onClick={handleExtendDocument}
-          zIndex={5}
-          title="Add 1 measure"
-        >
-          +1 bar
-        </Button>
       </Box>
     </Box>
   );
+}
+
+type MeasureAppendBoxProps = {
+  rect: { x: number; y: number; width: number; height: number };
+  onClick: () => void;
+};
+
+function MeasureAppendBox({ rect, onClick }: MeasureAppendBoxProps) {
+  const [isHovered, setIsHovered] = useState(false);
+
+  function handleClick(e: React.MouseEvent) {
+    e.stopPropagation();
+    onClick();
+  }
+
+  return (
+    <Box
+      position="absolute"
+      left={`${rect.x}px`}
+      top={`${rect.y}px`}
+      width={`${rect.width}px`}
+      height={`${rect.height}px`}
+      border={isHovered ? "1px dashed rgba(59, 130, 246, 0.4)" : "none"}
+      bg={isHovered ? "rgba(147, 197, 253, 0.05)" : "transparent"}
+      borderRadius="4px"
+      cursor="pointer"
+      pointerEvents="auto"
+      display="flex"
+      alignItems="center"
+      justifyContent="center"
+      onMouseEnter={() => setIsHovered(true)}
+      onMouseLeave={() => setIsHovered(false)}
+      onClick={handleClick}
+      zIndex={1}
+    >
+      {isHovered && (
+        <Box
+          fontSize="24px"
+          color="rgba(59, 130, 246, 0.6)"
+          fontWeight="300"
+          userSelect="none"
+        >
+          +
+        </Box>
+      )}
+    </Box>
+  );
+}
+
+function computeVirtualMeasureRect(
+  layout: LeadSheetLayout,
+  measureIndex: number
+): { x: number; y: number; width: number; height: number } | null {
+  if (layout.measureMetadata.length === 0) return null;
+
+  const measuresPerSystem = layout.measuresPerSystem;
+  const systemIndex = Math.floor(measureIndex / measuresPerSystem);
+  const positionInSystem = measureIndex % measuresPerSystem;
+
+  const x =
+    layout.systemPaddingX +
+    positionInSystem * (layout.measureWidth + layout.interMeasureGap);
+  const y =
+    layout.staveMargin +
+    systemIndex * (layout.staveHeight + layout.staveMargin);
+
+  // Derive staff height from any rendered measure (stable across systems)
+  const base = layout.measureMetadata[0]!;
+  const staffTopDelta = base.staffTop - base.y;
+  const staffBottomDelta = base.staffBottom - base.y;
+
+  const staffTop = y + staffTopDelta;
+  const staffBottom = y + staffBottomDelta;
+
+  // Measure-append box should live in the melody staff area (not the chord band)
+  const paddingY = 6;
+  return {
+    x,
+    y: staffTop - paddingY,
+    width: layout.measureWidth,
+    height: staffBottom - staffTop + paddingY * 2,
+  };
 }

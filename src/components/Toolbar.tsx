@@ -7,6 +7,11 @@ import { interfaceState } from "../lead-sheet/InterfaceState";
 import { toggleAccidentalAction } from "../lead-sheet/actions";
 import { Duration } from "../lead-sheet/types";
 import { formatShortcut } from "../lib/format-shortcut";
+import {
+  QuarterNoteIcon,
+  EighthNoteIcon,
+  SixteenthNoteIcon,
+} from "./NoteIcons";
 
 export function Toolbar() {
   const timeSignature = useObservable(doc.timeSignature);
@@ -100,21 +105,21 @@ export function Toolbar() {
           borderColor="gray.200"
         >
           <DurationButton
-            label="♩"
+            icon={<QuarterNoteIcon size={18} />}
             duration="1/4"
             currentDuration={currentDuration}
             onClick={() => handleDurationChange("1/4")}
             shortcut={formatShortcut(["digit4"])}
           />
           <DurationButton
-            label="♪"
+            icon={<EighthNoteIcon size={18} />}
             duration="1/8"
             currentDuration={currentDuration}
             onClick={() => handleDurationChange("1/8")}
             shortcut={formatShortcut(["digit8"])}
           />
           <DurationButton
-            label="𝅘𝅥𝅯"
+            icon={<SixteenthNoteIcon size={18} />}
             duration="1/16"
             currentDuration={currentDuration}
             onClick={() => handleDurationChange("1/16")}
@@ -187,7 +192,7 @@ export function Toolbar() {
 }
 
 type DurationButtonProps = {
-  label: string;
+  icon: React.ReactNode;
   duration: Duration;
   currentDuration: Duration;
   onClick: () => void;
@@ -195,7 +200,7 @@ type DurationButtonProps = {
 };
 
 function DurationButton(props: DurationButtonProps) {
-  const { label, duration, currentDuration, onClick, shortcut } = props;
+  const { icon, duration, currentDuration, onClick, shortcut } = props;
   const isActive = currentDuration === duration;
 
   return (
@@ -217,6 +222,9 @@ function DurationButton(props: DurationButtonProps) {
           border={isActive ? "1px solid" : "1px solid transparent"}
           borderColor={isActive ? "gray.300" : "transparent"}
           boxShadow={isActive ? "0 1px 2px rgba(0, 0, 0, 0.05)" : "none"}
+          display="flex"
+          alignItems="center"
+          justifyContent="center"
           _hover={{
             bg: isActive ? "white" : "gray.100",
             color: "gray.900",
@@ -225,7 +233,7 @@ function DurationButton(props: DurationButtonProps) {
             transform: "scale(0.98)",
           }}
         >
-          {label}
+          {icon}
         </Box>
       </Tooltip.Trigger>
       <Tooltip.Positioner>

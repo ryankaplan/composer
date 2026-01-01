@@ -106,9 +106,20 @@ export function renderLeadSheet(options: RenderOptions): LeadSheetLayout {
 
   // Return layout data for React overlay
   const unitsPerBar = getBarCapacity(timeSignature);
+  const availableWidth = Math.max(0, width - SYSTEM_PADDING_X * 2);
+  const measuresPerSystem = Math.max(
+    1,
+    Math.floor(availableWidth / (MEASURE_WIDTH + INTER_MEASURE_GAP))
+  );
   return {
     measureMetadata,
     unitsPerBar,
+    measuresPerSystem,
+    measureWidth: MEASURE_WIDTH,
+    systemPaddingX: SYSTEM_PADDING_X,
+    interMeasureGap: INTER_MEASURE_GAP,
+    staveMargin: STAVE_MARGIN,
+    staveHeight: STAVE_HEIGHT,
   };
 }
 
@@ -136,6 +147,12 @@ export type MeasureMetadata = {
 export type LeadSheetLayout = {
   measureMetadata: MeasureMetadata[];
   unitsPerBar: Unit;
+  measuresPerSystem: number;
+  measureWidth: number;
+  systemPaddingX: number;
+  interMeasureGap: number;
+  staveMargin: number;
+  staveHeight: number;
 };
 
 function renderMeasures(

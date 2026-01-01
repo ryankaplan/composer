@@ -749,6 +749,23 @@ export class Document {
     });
   }
 
+  // Insert a chord region at absolute time positions
+  insertChordRegionAbsolute(start: Unit, end: Unit, text: string) {
+    return this.withUndoStep(() => {
+      const track = this.chords.get();
+      const result = insertChordRegion(track, start, end, text);
+      this.chords.set(result.track);
+
+      // Auto-extend document if chord extends beyond current explicit end
+      const currentExplicitEnd = this.explicitEndUnit.get();
+      if (result.region.end > currentExplicitEnd) {
+        this.explicitEndUnit.set(result.region.end);
+      }
+
+      return result.region.id;
+    });
+  }
+
   // Update the text of a chord region
   updateChordRegionText(id: string, text: string) {
     return this.withUndoStep(() => {

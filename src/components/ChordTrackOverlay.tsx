@@ -28,6 +28,15 @@ type ChordTrackOverlayProps = {
   onBackgroundClick: () => void;
   onMeasureInsertClick: (measureIndex: number, clickUnit: Unit) => void;
   onResizeCommit: (regionId: string, newStart: Unit, newEnd: Unit) => void;
+  onChordAppend: (
+    start: Unit,
+    end: Unit,
+    text: string,
+    x: number,
+    y: number,
+    width: number,
+    height: number
+  ) => void;
 };
 
 type DragState = {
@@ -60,6 +69,17 @@ type GapBox = {
   height: number;
 };
 
+// An append box represents a clickable area to append a chord after the last chord
+type AppendBox = {
+  start: Unit;
+  end: Unit;
+  text: string;
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+};
+
 export function ChordTrackOverlay({
   chordTrack,
   timeSignature,
@@ -69,8 +89,10 @@ export function ChordTrackOverlay({
   onBackgroundClick,
   onMeasureInsertClick,
   onResizeCommit,
+  onChordAppend,
 }: ChordTrackOverlayProps) {
   const [hoveredGapKey, setHoveredGapKey] = useState<string | null>(null);
+  const [hoveredAppendKey, setHoveredAppendKey] = useState<string | null>(null);
   const [dragState, setDragState] = useState<DragState | null>(null);
   const overlayRef = useRef<HTMLDivElement>(null);
 
@@ -87,6 +109,9 @@ export function ChordTrackOverlay({
     layout.measureMetadata,
     layout.unitsPerBar
   );
+
+  // Compute chord append boxes (right of last chord)
+  const appendBoxes = computeChordAppendBoxes(chordTrack, layout);
 
   // Apply drag preview to segments if dragging
   const displaySegments = dragState
@@ -229,6 +254,32 @@ export function ChordTrackOverlay({
               }
               overlayRef={overlayRef}
               layout={layout}
+            />
+          );
+        })}
+
+      {/* Chord append boxes - only show when not dragging */}
+      {!dragState &&
+        appendBoxes.map((appendBox, idx) => {
+          const key = `append-${appendBox.start}-${appendBox.end}-${idx}`;
+          return (
+            <ChordAppendBox
+              key={key}
+              appendBox={appendBox}
+              isHovered={hoveredAppendKey === key}
+              onHover={() => setHoveredAppendKey(key)}
+              onLeave={() => setHoveredAppendKey(null)}
+              onClick={() =>
+                onChordAppend(
+                  appendBox.start,
+                  appendBox.end,
+                  appendBox.text,
+                  appendBox.x,
+                  appendBox.y,
+                  appendBox.width,
+                  appendBox.height
+                )
+              }
             />
           );
         })}
@@ -638,4 +689,183 @@ function computeGapBoxes(
   }
 
   return gapBoxes;
+}
+
+// Compute chord append boxes (right of last chord)
+function computeChordAppendBoxes(
+  chordTrack: ChordTrack,
+  layout: LeadSheetLayout
+): AppendBox[] {
+  // If no chords, return empty
+  if (chordTrack.regions.length === 0) {
+    return [];
+  }
+
+  // Find the last chord region
+  const lastChord = chordTrack.regions[chordTrack.regions.length - 1]!;
+  const duration = lastChord.end - lastChord.start;
+
+  // Compute the next region window
+  const nextStart = lastChord.end;
+  const nextEnd = nextStart + duration;
+
+  if (layout.measureMetadata.length === 0) return [];
+
+  const unitsPerBar = layout.unitsPerBar;
+  const startBar = Math.floor(nextStart / unitsPerBar);
+  const endBar = Math.floor((nextEnd - 1) / unitsPerBar);
+
+  const measureByIndex = new Map<number, MeasureMetadata>();
+  for (let i = 0; i < layout.measureMetadata.length; i++) {
+    const m = layout.measureMetadata[i]!;
+    measureByIndex.set(m.measureIndex, m);
+  }
+
+  const base = layout.measureMetadata[0]!;
+  const staffTopDelta = base.staffTop - base.y;
+  const staffBottomDelta = base.staffBottom - base.y;
+  const noteStartDeltaFallback = base.noteStartX - base.x;
+
+  let noteStartDeltaFirst = noteStartDeltaFallback;
+  let noteStartDeltaOther = noteStartDeltaFallback;
+
+  for (let i = 0; i < layout.measureMetadata.length; i++) {
+    const m = layout.measureMetadata[i]!;
+    const pos = m.measureIndex % layout.measuresPerSystem;
+    if (pos === 0) {
+      noteStartDeltaFirst = m.noteStartX - m.x;
+    } else {
+      noteStartDeltaOther = m.noteStartX - m.x;
+    }
+  }
+
+  const boxes: AppendBox[] = [];
+
+  for (let bar = startBar; bar <= endBar; bar++) {
+    const barStartUnit = bar * unitsPerBar;
+    const barEndUnit = (bar + 1) * unitsPerBar;
+
+    const segStart = Math.max(nextStart, barStartUnit);
+    const segEnd = Math.min(nextEnd, barEndUnit);
+    if (segStart >= segEnd) continue;
+
+    const measure =
+      measureByIndex.get(bar) ??
+      computeVirtualMeasureMetadata({
+        layout,
+        measureIndex: bar,
+        staffTopDelta,
+        staffBottomDelta,
+        noteStartDeltaFirst,
+        noteStartDeltaOther,
+      });
+
+    const noteWidth = measure.width - (measure.noteStartX - measure.x);
+    const startFraction = (segStart - barStartUnit) / unitsPerBar;
+    const endFraction = (segEnd - barStartUnit) / unitsPerBar;
+    const startX = measure.noteStartX + startFraction * noteWidth;
+    const endX = measure.noteStartX + endFraction * noteWidth;
+
+    boxes.push({
+      start: nextStart,
+      end: nextEnd,
+      text: lastChord.text,
+      x: startX,
+      y: measure.staffTop - 50,
+      width: endX - startX,
+      height: 30,
+    });
+  }
+
+  return boxes;
+}
+
+function computeVirtualMeasureMetadata(opts: {
+  layout: LeadSheetLayout;
+  measureIndex: number;
+  staffTopDelta: number;
+  staffBottomDelta: number;
+  noteStartDeltaFirst: number;
+  noteStartDeltaOther: number;
+}): MeasureMetadata {
+  const { layout, measureIndex } = opts;
+
+  const systemIndex = Math.floor(measureIndex / layout.measuresPerSystem);
+  const positionInSystem = measureIndex % layout.measuresPerSystem;
+
+  const x =
+    layout.systemPaddingX +
+    positionInSystem * (layout.measureWidth + layout.interMeasureGap);
+  const y =
+    layout.staveMargin +
+    systemIndex * (layout.staveHeight + layout.staveMargin);
+
+  const noteStartDelta =
+    positionInSystem === 0
+      ? opts.noteStartDeltaFirst
+      : opts.noteStartDeltaOther;
+
+  return {
+    measureIndex,
+    systemIndex,
+    x,
+    y,
+    width: layout.measureWidth,
+    noteStartX: x + noteStartDelta,
+    staffTop: y + opts.staffTopDelta,
+    staffBottom: y + opts.staffBottomDelta,
+  };
+}
+
+type ChordAppendBoxProps = {
+  appendBox: AppendBox;
+  isHovered: boolean;
+  onHover: () => void;
+  onLeave: () => void;
+  onClick: () => void;
+};
+
+function ChordAppendBox({
+  appendBox,
+  isHovered,
+  onHover,
+  onLeave,
+  onClick,
+}: ChordAppendBoxProps) {
+  function handleClick(e: React.MouseEvent) {
+    e.stopPropagation();
+    onClick();
+  }
+
+  return (
+    <Box
+      position="absolute"
+      left={`${appendBox.x}px`}
+      top={`${appendBox.y}px`}
+      width={`${appendBox.width}px`}
+      height={`${appendBox.height}px`}
+      border={isHovered ? "1px dashed rgba(59, 130, 246, 0.4)" : "none"}
+      bg={isHovered ? "rgba(147, 197, 253, 0.1)" : "transparent"}
+      borderRadius="4px"
+      cursor="pointer"
+      pointerEvents="auto"
+      display="flex"
+      alignItems="center"
+      justifyContent="center"
+      onMouseEnter={onHover}
+      onMouseLeave={onLeave}
+      onClick={handleClick}
+    >
+      {isHovered && (
+        <Box
+          fontSize="20px"
+          color="rgba(59, 130, 246, 0.6)"
+          fontWeight="300"
+          userSelect="none"
+        >
+          +
+        </Box>
+      )}
+    </Box>
+  );
 }

@@ -6,7 +6,7 @@ Needed for MVP transcription
 
 Nice to have for MVP transcription
 
-- [ ] Better chord entry
+- [x] Better chord entry
   - [ ] Let you enter chords with no melody
 
 Needed for multiple MVP transcriptions
@@ -23,3 +23,7 @@ Needed for efficiency?
   - [x] Paste
 - [ ] Drag to select
 - [ ] Make it feel like a document
+
+Cleanup
+
+- [ ] Actions organization
