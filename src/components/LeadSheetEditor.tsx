@@ -4,6 +4,8 @@ import { useObservable } from "../lib/observable";
 import { doc } from "../lead-sheet/Document";
 import { renderLeadSheet, LeadSheetLayout } from "../lead-sheet/vexflow-render";
 import { ChordTrackOverlay } from "./ChordTrackOverlay";
+import { interfaceState } from "../lead-sheet/InterfaceState";
+import { matchChords } from "../lead-sheet/chord-autocomplete";
 
 export function LeadSheetEditor() {
   const viewportRef = useRef<HTMLDivElement>(null);
@@ -20,6 +22,7 @@ export function LeadSheetEditor() {
   const chordTrack = useObservable(doc.chords);
   const eventStartUnits = useObservable(doc.eventStartUnits);
   const documentEndUnit = useObservable(doc.documentEndUnit);
+  const selectedChordId = useObservable(interfaceState.selectedChordId);
 
   const [containerSize, setContainerSize] = useState({
     width: 800,
@@ -29,6 +32,17 @@ export function LeadSheetEditor() {
   const [shadowReady, setShadowReady] = useState(false);
   const [editingChordId, setEditingChordId] = useState<string | null>(null);
   const [editingChordText, setEditingChordText] = useState("");
+  const [editingChordPosition, setEditingChordPosition] = useState<{
+    x: number;
+    y: number;
+    width: number;
+    height: number;
+  } | null>(null);
+  const [autocompleteSuggestions, setAutocompleteSuggestions] = useState<
+    string[]
+  >([]);
+  const [selectedSuggestionIndex, setSelectedSuggestionIndex] =
+    useState<number>(0);
   const [layout, setLayout] = useState<LeadSheetLayout | null>(null);
 
   // Isolate VexFlow SVG output from app CSS by rendering into a ShadowRoot.
@@ -141,9 +155,13 @@ export function LeadSheetEditor() {
           }
         }
       }
-      // If we clicked empty space, just clear selection
+      // If we clicked empty space, clear melody selection and chord selection
       doc.clearSelection();
       setEditingChordId(null);
+      setEditingChordPosition(null);
+      setAutocompleteSuggestions([]);
+      setSelectedSuggestionIndex(0);
+      interfaceState.clearSelectedChord();
     }
 
     const shadowRoot = host.shadowRoot;
@@ -156,26 +174,112 @@ export function LeadSheetEditor() {
 
   // Handle chord region editing
   function handleChordEditChange(e: React.ChangeEvent<HTMLInputElement>) {
-    setEditingChordText(e.target.value);
+    const newText = e.target.value;
+    setEditingChordText(newText);
+
+    // Update autocomplete suggestions
+    const suggestions = matchChords(newText, 10);
+    setAutocompleteSuggestions(suggestions);
+    setSelectedSuggestionIndex(0);
   }
 
   function handleChordEditKeyDown(e: React.KeyboardEvent<HTMLInputElement>) {
     if (e.key === "Enter") {
       e.preventDefault();
-      if (editingChordId && editingChordText.trim()) {
+
+      // If there are suggestions and one is selected, use it
+      if (
+        autocompleteSuggestions.length > 0 &&
+        selectedSuggestionIndex >= 0 &&
+        selectedSuggestionIndex < autocompleteSuggestions.length
+      ) {
+        const selectedSuggestion =
+          autocompleteSuggestions[selectedSuggestionIndex];
+        if (selectedSuggestion && editingChordId) {
+          doc.updateChordRegionText(editingChordId, selectedSuggestion);
+        }
+      } else if (editingChordId && editingChordText.trim()) {
+        // No suggestions or invalid index, use the typed text
         doc.updateChordRegionText(editingChordId, editingChordText.trim());
       }
+
       setEditingChordId(null);
+      setEditingChordPosition(null);
+      setAutocompleteSuggestions([]);
+      setSelectedSuggestionIndex(0);
     } else if (e.key === "Escape") {
       e.preventDefault();
       setEditingChordId(null);
+      setEditingChordPosition(null);
+      setAutocompleteSuggestions([]);
+      setSelectedSuggestionIndex(0);
+    } else if (e.key === "ArrowDown") {
+      e.preventDefault();
+      if (autocompleteSuggestions.length > 0) {
+        setSelectedSuggestionIndex((prev) =>
+          prev < autocompleteSuggestions.length - 1 ? prev + 1 : prev
+        );
+      }
+    } else if (e.key === "ArrowUp") {
+      e.preventDefault();
+      if (autocompleteSuggestions.length > 0) {
+        setSelectedSuggestionIndex((prev) => (prev > 0 ? prev - 1 : 0));
+      }
     }
   }
 
   // Handle chord clicks from the React overlay
-  function handleChordClick(chordId: string, text: string) {
+  function handleChordClick(
+    chordId: string,
+    text: string,
+    x: number,
+    y: number,
+    width: number,
+    height: number
+  ) {
+    interfaceState.setSelectedChord(chordId);
     setEditingChordId(chordId);
     setEditingChordText(text);
+    setEditingChordPosition({ x, y, width, height });
+
+    // Initialize autocomplete suggestions
+    const suggestions = matchChords(text, 10);
+    setAutocompleteSuggestions(suggestions);
+    setSelectedSuggestionIndex(0);
+  }
+
+  // Handle clicking on an autocomplete suggestion
+  function handleSuggestionClick(suggestion: string) {
+    if (editingChordId) {
+      doc.updateChordRegionText(editingChordId, suggestion);
+    }
+    setEditingChordId(null);
+    setEditingChordPosition(null);
+    setAutocompleteSuggestions([]);
+    setSelectedSuggestionIndex(0);
+  }
+
+  // Handle background clicks to clear chord selection
+  function handleChordBackgroundClick() {
+    interfaceState.clearSelectedChord();
+    setEditingChordId(null);
+    setEditingChordPosition(null);
+    setAutocompleteSuggestions([]);
+    setSelectedSuggestionIndex(0);
+  }
+
+  // Handle measure insertion click
+  function handleMeasureInsertClick(measureIndex: number) {
+    doc.insertChordInMeasure(measureIndex, "C");
+  }
+
+  // Handle chord region resize commit
+  function handleResizeCommit(
+    regionId: string,
+    newStart: number,
+    newEnd: number
+  ) {
+    doc.resizeChordRegion(regionId, newStart, newEnd);
   }
 
   return (
@@ -233,21 +337,29 @@ export function LeadSheetEditor() {
           />
 
           {/* Chord track overlay (React layer) */}
-          <ChordTrackOverlay
-            chordTrack={chordTrack}
-            timeSignature={timeSignature}
-            layout={layout}
-            onChordClick={handleChordClick}
-          />
+          {layout && (
+            <ChordTrackOverlay
+              chordTrack={chordTrack}
+              timeSignature={timeSignature}
+              layout={layout}
+              selectedChordId={selectedChordId}
+              onChordClick={handleChordClick}
+              onBackgroundClick={handleChordBackgroundClick}
+              onMeasureInsertClick={handleMeasureInsertClick}
+              onResizeCommit={handleResizeCommit}
+            />
+          )}
         </div>
 
         {/* Chord region edit overlay */}
-        {editingChordId && (
+        {editingChordId && editingChordPosition && (
           <Box
             position="absolute"
-            top="20px"
-            left="50%"
-            transform="translateX(-50%)"
+            left={`${Math.max(
+              0,
+              Math.min(editingChordPosition.x, containerSize.width - 220)
+            )}px`}
+            top={`${Math.max(0, editingChordPosition.y - 8)}px`}
             zIndex={10}
           >
             <Input
@@ -261,7 +373,45 @@ export function LeadSheetEditor() {
               bg="white"
               border="2px solid"
               borderColor="blue.500"
+              boxShadow="0 2px 8px rgba(0, 0, 0, 0.15)"
             />
+
+            {/* Autocomplete dropdown */}
+            {autocompleteSuggestions.length > 0 && (
+              <Box
+                position="absolute"
+                top="32px"
+                left="0"
+                width="200px"
+                bg="white"
+                border="1px solid"
+                borderColor="gray.300"
+                borderRadius="4px"
+                boxShadow="0 4px 12px rgba(0, 0, 0, 0.15)"
+                maxH="200px"
+                overflowY="auto"
+                zIndex={11}
+              >
+                {autocompleteSuggestions.map((suggestion, index) => (
+                  <Box
+                    key={suggestion}
+                    px={3}
+                    py={2}
+                    cursor="pointer"
+                    bg={
+                      index === selectedSuggestionIndex
+                        ? "blue.100"
+                        : "transparent"
+                    }
+                    _hover={{ bg: "gray.100" }}
+                    fontSize="sm"
+                    onClick={() => handleSuggestionClick(suggestion)}
+                  >
+                    {suggestion}
+                  </Box>
+                ))}
+              </Box>
+            )}
           </Box>
         )}
       </Box>

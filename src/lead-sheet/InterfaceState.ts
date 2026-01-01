@@ -5,6 +5,7 @@ export class InterfaceState {
   // Observable state (not undoable)
   readonly currentDuration = new Observable<Duration>("1/4");
   readonly pendingAccidental = new Observable<Accidental>(null);
+  readonly selectedChordId = new Observable<string | null>(null);
 
   // Duration
   setCurrentDurationFromKey(key: "4" | "8" | "6") {
@@ -27,6 +28,15 @@ export class InterfaceState {
 
   clearPendingAccidental() {
     this.pendingAccidental.set(null);
+  }
+
+  // Chord selection
+  setSelectedChord(chordId: string | null) {
+    this.selectedChordId.set(chordId);
+  }
+
+  clearSelectedChord() {
+    this.selectedChordId.set(null);
   }
 }
 

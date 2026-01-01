@@ -101,6 +101,15 @@ export function insertChordInCurrentMeasureAction() {
   doc.insertChordInMeasure(measureIndex, "C");
 }
 
+// Delete the selected chord (chord track approach)
+export function deleteSelectedChordAction() {
+  const selectedChordId = interfaceState.selectedChordId.get();
+  if (selectedChordId) {
+    doc.deleteChordRegion(selectedChordId);
+    interfaceState.clearSelectedChord();
+  }
+}
+
 export function extendLeftNoteAction() {
   const duration = interfaceState.currentDuration.get();
   doc.extendLeftNoteByDuration(duration);
@@ -279,10 +288,26 @@ export function registerShortcuts() {
 
   // Delete
   unregisterShortcuts.push(
-    registerKeyboardShortcut(["backspace"], () => doc.deleteBackward())
+    registerKeyboardShortcut(["backspace"], () => {
+      // If a chord is selected, delete it instead of melody
+      const selectedChordId = interfaceState.selectedChordId.get();
+      if (selectedChordId) {
+        deleteSelectedChordAction();
+      } else {
+        doc.deleteBackward();
+      }
+    })
   );
   unregisterShortcuts.push(
-    registerKeyboardShortcut(["delete"], () => doc.deleteForward())
+    registerKeyboardShortcut(["delete"], () => {
+      // If a chord is selected, delete it instead of melody
+      const selectedChordId = interfaceState.selectedChordId.get();
+      if (selectedChordId) {
+        deleteSelectedChordAction();
+      } else {
+        doc.deleteForward();
+      }
+    })
   );
 
   // Insert chord in current measure (chord track)
@@ -313,17 +338,23 @@ export function registerShortcuts() {
 
   // Copy
   unregisterShortcuts.push(
-    registerKeyboardShortcut(["meta", "c"], () => copyAction())
+    registerKeyboardShortcut(["meta", "c"], () => {
+      copyAction();
+    })
   );
 
   // Cut
   unregisterShortcuts.push(
-    registerKeyboardShortcut(["meta", "x"], () => cutAction())
+    registerKeyboardShortcut(["meta", "x"], () => {
+      cutAction();
+    })
   );
 
   // Paste
   unregisterShortcuts.push(
-    registerKeyboardShortcut(["meta", "v"], () => pasteAction())
+    registerKeyboardShortcut(["meta", "v"], () => {
+      pasteAction();
+    })
   );
 }
 

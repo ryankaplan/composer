@@ -1,13 +1,39 @@
-import React from "react";
+import React, { useState, useRef, useEffect } from "react";
 import { Box } from "@chakra-ui/react";
-import { ChordTrack, TimeSignature, ChordRegion } from "../lead-sheet/types";
+import {
+  ChordTrack,
+  TimeSignature,
+  ChordRegion,
+  Unit,
+} from "../lead-sheet/types";
 import { LeadSheetLayout, MeasureMetadata } from "../lead-sheet/vexflow-render";
+import { clampResizeToNeighbors } from "../lead-sheet/chords";
 
 type ChordTrackOverlayProps = {
   chordTrack: ChordTrack;
   timeSignature: TimeSignature;
-  layout: LeadSheetLayout | null;
-  onChordClick: (chordId: string, text: string) => void;
+  layout: LeadSheetLayout;
+  selectedChordId: string | null;
+  onChordClick: (
+    chordId: string,
+    text: string,
+    x: number,
+    y: number,
+    width: number,
+    height: number
+  ) => void;
+  onBackgroundClick: () => void;
+  onMeasureInsertClick: (measureIndex: number) => void;
+  onResizeCommit: (regionId: string, newStart: Unit, newEnd: Unit) => void;
+};
+
+type DragState = {
+  regionId: string;
+  handle: "left" | "right";
+  originalStart: Unit;
+  originalEnd: Unit;
+  previewStart: Unit;
+  previewEnd: Unit;
 };
 
 // A chord segment represents a visual box for a chord region on a specific system
@@ -24,11 +50,17 @@ export function ChordTrackOverlay({
   chordTrack,
   timeSignature,
   layout,
+  selectedChordId,
   onChordClick,
+  onBackgroundClick,
+  onMeasureInsertClick,
+  onResizeCommit,
 }: ChordTrackOverlayProps) {
-  if (!layout) {
-    return null;
-  }
+  const [hoveredMeasureIndex, setHoveredMeasureIndex] = useState<number | null>(
+    null
+  );
+  const [dragState, setDragState] = useState<DragState | null>(null);
+  const overlayRef = useRef<HTMLDivElement>(null);
 
   const segments = computeChordSegments(
     chordTrack,
@@ -36,8 +68,110 @@ export function ChordTrackOverlay({
     layout.unitsPerBar
   );
 
+  // Apply drag preview to segments if dragging
+  const displaySegments = dragState
+    ? applyDragPreviewToSegments(
+        segments,
+        dragState,
+        layout.measureMetadata,
+        layout.unitsPerBar
+      )
+    : segments;
+
+  // Handle pointer move during drag
+  useEffect(() => {
+    if (!dragState || !overlayRef.current) return;
+
+    function handlePointerMove(e: PointerEvent) {
+      if (!dragState || !layout) return;
+
+      const rect = overlayRef.current?.getBoundingClientRect();
+      if (!rect) return;
+
+      const mouseX = e.clientX - rect.left;
+
+      // Convert mouse position to Units
+      const unit = pixelToUnit(
+        mouseX,
+        layout.measureMetadata,
+        layout.unitsPerBar
+      );
+      if (unit === null) return;
+
+      // Snap to beat boundaries (4 units per beat in 4/4)
+      const beatsPerUnit = 4;
+      const snappedUnit = Math.round(unit / beatsPerUnit) * beatsPerUnit;
+
+      // Compute new start/end based on which handle is dragging
+      let newStart = dragState.originalStart;
+      let newEnd = dragState.originalEnd;
+
+      if (dragState.handle === "left") {
+        newStart = snappedUnit;
+      } else {
+        newEnd = snappedUnit;
+      }
+
+      // Clamp to neighbors
+      const region = chordTrack.regions.find(
+        (r) => r.id === dragState.regionId
+      );
+      if (!region) return;
+
+      const clamped = clampResizeToNeighbors(
+        chordTrack,
+        dragState.regionId,
+        newStart,
+        newEnd
+      );
+      if (!clamped) return;
+
+      setDragState({
+        ...dragState,
+        previewStart: clamped.start,
+        previewEnd: clamped.end,
+      });
+    }
+
+    function handlePointerUp() {
+      if (!dragState) return;
+
+      // Commit the resize
+      onResizeCommit(
+        dragState.regionId,
+        dragState.previewStart,
+        dragState.previewEnd
+      );
+      setDragState(null);
+    }
+
+    window.addEventListener("pointermove", handlePointerMove);
+    window.addEventListener("pointerup", handlePointerUp);
+
+    return () => {
+      window.removeEventListener("pointermove", handlePointerMove);
+      window.removeEventListener("pointerup", handlePointerUp);
+    };
+  }, [dragState, layout, chordTrack, onResizeCommit]);
+
+  // Start dragging a handle
+  function startDrag(regionId: string, handle: "left" | "right") {
+    const region = chordTrack.regions.find((r) => r.id === regionId);
+    if (!region) return;
+
+    setDragState({
+      regionId,
+      handle,
+      originalStart: region.start,
+      originalEnd: region.end,
+      previewStart: region.start,
+      previewEnd: region.end,
+    });
+  }
+
   return (
     <Box
+      ref={overlayRef}
       position="absolute"
       top={0}
       left={0}
@@ -45,25 +179,141 @@ export function ChordTrackOverlay({
       height="100%"
       pointerEvents="none"
     >
-      {segments.map((segment, idx) => (
+      {/* Background click area to deselect chords */}
+      <Box
+        position="absolute"
+        top={0}
+        left={0}
+        width="100%"
+        height="100%"
+        pointerEvents="auto"
+        onClick={onBackgroundClick}
+      />
+
+      {/* Measure insertion hover boxes */}
+      {layout.measureMetadata.map((measure) => (
+        <MeasureInsertionBox
+          key={`measure-insert-${measure.measureIndex}`}
+          measure={measure}
+          isHovered={hoveredMeasureIndex === measure.measureIndex}
+          onHover={() => setHoveredMeasureIndex(measure.measureIndex)}
+          onLeave={() => setHoveredMeasureIndex(null)}
+          onClick={() => onMeasureInsertClick(measure.measureIndex)}
+        />
+      ))}
+
+      {displaySegments.map((segment, idx) => (
         <ChordBox
           key={`${segment.regionId}-${idx}`}
           segment={segment}
+          isSelected={segment.regionId === selectedChordId}
+          isDragging={dragState?.regionId === segment.regionId}
           onChordClick={onChordClick}
+          onHandleDragStart={startDrag}
         />
       ))}
     </Box>
   );
 }
 
-type ChordBoxProps = {
-  segment: ChordSegment;
-  onChordClick: (chordId: string, text: string) => void;
+type MeasureInsertionBoxProps = {
+  measure: MeasureMetadata;
+  isHovered: boolean;
+  onHover: () => void;
+  onLeave: () => void;
+  onClick: () => void;
 };
 
-function ChordBox({ segment, onChordClick }: ChordBoxProps) {
-  function handleClick() {
-    onChordClick(segment.regionId, segment.text);
+function MeasureInsertionBox({
+  measure,
+  isHovered,
+  onHover,
+  onLeave,
+  onClick,
+}: MeasureInsertionBoxProps) {
+  const y = measure.staffTop - 50;
+  const height = 30;
+
+  return (
+    <Box
+      position="absolute"
+      left={`${measure.x}px`}
+      top={`${y}px`}
+      width={`${measure.width}px`}
+      height={`${height}px`}
+      border={isHovered ? "1px dashed rgba(59, 130, 246, 0.4)" : "none"}
+      bg={isHovered ? "rgba(147, 197, 253, 0.1)" : "transparent"}
+      borderRadius="4px"
+      cursor="pointer"
+      pointerEvents="auto"
+      display="flex"
+      alignItems="center"
+      justifyContent="center"
+      onMouseEnter={onHover}
+      onMouseLeave={onLeave}
+      onClick={(e) => {
+        e.stopPropagation();
+        onClick();
+      }}
+    >
+      {isHovered && (
+        <Box
+          fontSize="20px"
+          color="rgba(59, 130, 246, 0.6)"
+          fontWeight="300"
+          userSelect="none"
+        >
+          +
+        </Box>
+      )}
+    </Box>
+  );
+}
+
+type ChordBoxProps = {
+  segment: ChordSegment;
+  isSelected: boolean;
+  isDragging: boolean;
+  onChordClick: (
+    chordId: string,
+    text: string,
+    x: number,
+    y: number,
+    width: number,
+    height: number
+  ) => void;
+  onHandleDragStart: (regionId: string, handle: "left" | "right") => void;
+};
+
+function ChordBox({
+  segment,
+  isSelected,
+  isDragging,
+  onChordClick,
+  onHandleDragStart,
+}: ChordBoxProps) {
+  function handleClick(e: React.MouseEvent) {
+    e.stopPropagation(); // Prevent background click from clearing selection
+    onChordClick(
+      segment.regionId,
+      segment.text,
+      segment.x,
+      segment.y,
+      segment.width,
+      segment.height
+    );
+  }
+
+  function handleLeftHandlePointerDown(e: React.PointerEvent) {
+    e.stopPropagation();
+    e.preventDefault();
+    onHandleDragStart(segment.regionId, "left");
+  }
+
+  function handleRightHandlePointerDown(e: React.PointerEvent) {
+    e.stopPropagation();
+    e.preventDefault();
+    onHandleDragStart(segment.regionId, "right");
   }
 
   return (
@@ -75,8 +325,12 @@ function ChordBox({ segment, onChordClick }: ChordBoxProps) {
         top={`${segment.y}px`}
         width={`${segment.width}px`}
         height={`${segment.height}px`}
-        bg="rgba(147, 197, 253, 0.3)"
-        border="1px solid rgb(59, 130, 246)"
+        bg={isSelected ? "rgba(59, 130, 246, 0.4)" : "rgba(147, 197, 253, 0.3)"}
+        border={
+          isSelected
+            ? "2px solid rgb(37, 99, 235)"
+            : "1px solid rgb(59, 130, 246)"
+        }
         borderRadius="4px"
         cursor="pointer"
         pointerEvents="auto"
@@ -91,7 +345,7 @@ function ChordBox({ segment, onChordClick }: ChordBoxProps) {
         fontFamily="Arial, sans-serif"
         fontSize="14px"
         fontWeight="600"
-        color="rgb(30, 64, 175)"
+        color={isSelected ? "rgb(29, 78, 216)" : "rgb(30, 64, 175)"}
         pointerEvents="none"
         userSelect="none"
       >
@@ -105,10 +359,12 @@ function ChordBox({ segment, onChordClick }: ChordBoxProps) {
         top={`${segment.y + segment.height / 2 - 8}px`}
         width="6px"
         height="16px"
-        bg="rgb(59, 130, 246)"
+        bg={isSelected ? "rgb(37, 99, 235)" : "rgb(59, 130, 246)"}
         borderRadius="2px"
         cursor="ew-resize"
         pointerEvents="auto"
+        onClick={(e) => e.stopPropagation()}
+        onPointerDown={handleLeftHandlePointerDown}
       />
 
       {/* Right handle */}
@@ -118,10 +374,12 @@ function ChordBox({ segment, onChordClick }: ChordBoxProps) {
         top={`${segment.y + segment.height / 2 - 8}px`}
         width="6px"
         height="16px"
-        bg="rgb(59, 130, 246)"
+        bg={isSelected ? "rgb(37, 99, 235)" : "rgb(59, 130, 246)"}
         borderRadius="2px"
         cursor="ew-resize"
         pointerEvents="auto"
+        onClick={(e) => e.stopPropagation()}
+        onPointerDown={handleRightHandlePointerDown}
       />
     </>
   );
@@ -196,3 +454,59 @@ function computeChordSegments(
   return segments;
 }
 
+// Convert pixel X position to Unit (time position)
+function pixelToUnit(
+  pixelX: number,
+  measureMetadata: MeasureMetadata[],
+  unitsPerBar: number
+): Unit | null {
+  // Find the measure containing this pixel position
+  for (const measure of measureMetadata) {
+    if (pixelX >= measure.x && pixelX <= measure.x + measure.width) {
+      // Position within the measure
+      const measureStartUnit = measure.measureIndex * unitsPerBar;
+      const noteWidth = measure.width - (measure.noteStartX - measure.x);
+      const xInMeasure = pixelX - measure.noteStartX;
+      const fraction = Math.max(0, Math.min(1, xInMeasure / noteWidth));
+      return measureStartUnit + fraction * unitsPerBar;
+    }
+  }
+
+  return null;
+}
+
+// Apply drag preview to segments (create modified segments for the dragged region)
+function applyDragPreviewToSegments(
+  segments: ChordSegment[],
+  dragState: DragState,
+  measureMetadata: MeasureMetadata[],
+  unitsPerBar: number
+): ChordSegment[] {
+  const result: ChordSegment[] = [];
+
+  for (const segment of segments) {
+    if (segment.regionId === dragState.regionId) {
+      // This segment belongs to the dragged region, recompute with preview start/end
+      const previewRegion: ChordRegion = {
+        id: dragState.regionId,
+        start: dragState.previewStart,
+        end: dragState.previewEnd,
+        text: segment.text,
+      };
+
+      const previewSegments = computeChordSegments(
+        { regions: [previewRegion] },
+        measureMetadata,
+        unitsPerBar
+      );
+
+      for (const previewSeg of previewSegments) {
+        result.push(previewSeg);
+      }
+    } else {
+      result.push(segment);
+    }
+  }
+
+  return result;
+}
