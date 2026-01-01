@@ -112,9 +112,6 @@ export function LeadSheetEditor() {
       width: containerSize.width,
       height: containerSize.height,
       showCaret: true,
-      chordTrack,
-      eventStartUnits,
-      documentEndUnit,
     });
 
     setLayout(newLayout);

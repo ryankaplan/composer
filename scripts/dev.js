@@ -49,6 +49,9 @@ async function startDevServer() {
     outfile: "public/dist/bundle.js",
     tsconfig: "tsconfig.json",
     plugins: [liveReloadPlugin],
+    define: {
+      "process.env.NODE_ENV": '"development"',
+    },
     banner: {
       js: `
 (() => {

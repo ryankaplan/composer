@@ -29,9 +29,6 @@ export type RenderOptions = {
   width: number;
   height: number;
   showCaret: boolean;
-  chordTrack: ChordTrack;
-  eventStartUnits: Unit[];
-  documentEndUnit: Unit;
 };
 
 // Convert duration to VexFlow duration string
@@ -47,11 +44,7 @@ function durationToVexFlow(duration: "1/4" | "1/8" | "1/16"): string {
 }
 
 // Convert pitch to VexFlow key string (e.g., "c/4", "d#/5")
-function pitchToVexFlowKey(
-  letter: string,
-  octave: number,
-  accidental: Accidental
-): string {
+function pitchToVexFlowKey(letter: string, octave: number): string {
   const vexLetter = letter.toLowerCase();
 
   // Don't include accidental in the key string - we'll add it separately
@@ -76,9 +69,6 @@ export function renderLeadSheet(options: RenderOptions): LeadSheetLayout {
     caret,
     selection,
     showCaret,
-    chordTrack,
-    eventStartUnits,
-    documentEndUnit,
   } = options;
 
   // Clear container
@@ -113,17 +103,6 @@ export function renderLeadSheet(options: RenderOptions): LeadSheetLayout {
     selection,
     showCaret
   );
-
-  // Chord regions are now rendered by React overlay (see ChordTrackOverlay component)
-  // if (svgEl) {
-  //   renderChordRegions(
-  //     svgEl,
-  //     chordTrack,
-  //     timeSignature,
-  //     measureMetadata,
-  //     documentEndUnit
-  //   );
-  // }
 
   // Return layout data for React overlay
   const unitsPerBar = getBarCapacity(timeSignature);
@@ -286,8 +265,7 @@ function renderMeasures(
           const vexDuration = durationToVexFlow(event.duration);
           const vexKey = pitchToVexFlowKey(
             event.pitch.letter,
-            event.pitch.octave,
-            event.pitch.accidental
+            event.pitch.octave
           );
 
           const note = new StaveNote({
@@ -669,123 +647,5 @@ function renderOverlays(
     hitbox.setAttribute("cursor", "pointer");
     hitbox.setAttribute("data-event-idx", String(eventIdx));
     hitboxGroup.appendChild(hitbox);
-  }
-}
-
-// Render chord regions as boxes above the staff
-function renderChordRegions(
-  svgEl: Element,
-  chordTrack: ChordTrack,
-  timeSignature: TimeSignature,
-  measureMetadata: MeasureMetadata[],
-  documentEndUnit: Unit
-) {
-  const NS = "http://www.w3.org/2000/svg";
-  const unitsPerBar = getBarCapacity(timeSignature);
-
-  // Create a group for chord regions
-  const chordGroup = document.createElementNS(NS, "g");
-  chordGroup.setAttribute("id", "chord-regions");
-  svgEl.appendChild(chordGroup);
-
-  // Render each chord region
-  for (const region of chordTrack.regions) {
-    const startBar = Math.floor(region.start / unitsPerBar);
-    const endBar = Math.floor((region.end - 1) / unitsPerBar);
-
-    // Find all measures this region spans
-    const spannedMeasures = measureMetadata.filter(
-      (m) => m.measureIndex >= startBar && m.measureIndex <= endBar
-    );
-
-    if (spannedMeasures.length === 0) continue;
-
-    // For each system this region appears on, render a box
-    const systemsSpanned = new Set(spannedMeasures.map((m) => m.systemIndex));
-
-    for (const systemIdx of systemsSpanned) {
-      const measuresInSystem = spannedMeasures.filter(
-        (m) => m.systemIndex === systemIdx
-      );
-      if (measuresInSystem.length === 0) continue;
-
-      const firstMeasure = measuresInSystem[0]!;
-      const lastMeasure = measuresInSystem[measuresInSystem.length - 1]!;
-
-      // Calculate x position within first measure
-      const startOffsetInBar = region.start % unitsPerBar;
-      const startFraction = startOffsetInBar / unitsPerBar;
-      const firstMeasureNoteWidth =
-        firstMeasure.width - (firstMeasure.noteStartX - firstMeasure.x);
-      const startX =
-        firstMeasure.noteStartX + startFraction * firstMeasureNoteWidth;
-
-      // Calculate x position within last measure
-      const endOffsetInBar = region.end % unitsPerBar;
-      const endFraction =
-        endOffsetInBar === 0 ? 1 : endOffsetInBar / unitsPerBar;
-      const lastMeasureNoteWidth =
-        lastMeasure.width - (lastMeasure.noteStartX - lastMeasure.x);
-      const endX = lastMeasure.noteStartX + endFraction * lastMeasureNoteWidth;
-
-      // Calculate width
-      const width = endX - startX;
-
-      // Position above the staff
-      const y = firstMeasure.staffTop - 50;
-      const height = 30;
-
-      // Render the chord box
-      const rect = document.createElementNS(NS, "rect");
-      rect.setAttribute("x", String(startX));
-      rect.setAttribute("y", String(y));
-      rect.setAttribute("width", String(width));
-      rect.setAttribute("height", String(height));
-      rect.setAttribute("fill", "rgba(147, 197, 253, 0.3)"); // blue.300 with opacity
-      rect.setAttribute("stroke", "rgb(59, 130, 246)"); // blue.500
-      rect.setAttribute("stroke-width", "1");
-      rect.setAttribute("rx", "4");
-      rect.setAttribute("cursor", "pointer");
-      rect.setAttribute("data-chord-id", region.id);
-      chordGroup.appendChild(rect);
-
-      // Render the chord text
-      const text = document.createElementNS(NS, "text");
-      text.setAttribute("x", String(startX + 6));
-      text.setAttribute("y", String(y + height / 2 + 5));
-      text.setAttribute("font-family", "Arial, sans-serif");
-      text.setAttribute("font-size", "14");
-      text.setAttribute("font-weight", "600");
-      text.setAttribute("fill", "rgb(30, 64, 175)"); // blue.800
-      text.setAttribute("pointer-events", "none");
-      text.textContent = region.text;
-      chordGroup.appendChild(text);
-
-      // Render left handle
-      const leftHandle = document.createElementNS(NS, "rect");
-      leftHandle.setAttribute("x", String(startX - 3));
-      leftHandle.setAttribute("y", String(y + height / 2 - 8));
-      leftHandle.setAttribute("width", "6");
-      leftHandle.setAttribute("height", "16");
-      leftHandle.setAttribute("fill", "rgb(59, 130, 246)"); // blue.500
-      leftHandle.setAttribute("rx", "2");
-      leftHandle.setAttribute("cursor", "ew-resize");
-      leftHandle.setAttribute("data-chord-id", region.id);
-      leftHandle.setAttribute("data-handle", "left");
-      chordGroup.appendChild(leftHandle);
-
-      // Render right handle
-      const rightHandle = document.createElementNS(NS, "rect");
-      rightHandle.setAttribute("x", String(endX - 3));
-      rightHandle.setAttribute("y", String(y + height / 2 - 8));
-      rightHandle.setAttribute("width", "6");
-      rightHandle.setAttribute("height", "16");
-      rightHandle.setAttribute("fill", "rgb(59, 130, 246)"); // blue.500
-      rightHandle.setAttribute("rx", "2");
-      rightHandle.setAttribute("cursor", "ew-resize");
-      rightHandle.setAttribute("data-chord-id", region.id);
-      rightHandle.setAttribute("data-handle", "right");
-      chordGroup.appendChild(rightHandle);
-    }
   }
 }
