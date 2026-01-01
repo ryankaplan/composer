@@ -66,7 +66,7 @@ const MEASURE_WIDTH = 200;
 const SYSTEM_PADDING_X = 20;
 const INTER_MEASURE_GAP = 0;
 
-export function renderLeadSheet(options: RenderOptions) {
+export function renderLeadSheet(options: RenderOptions): LeadSheetLayout {
   const {
     container,
     events,
@@ -115,16 +115,23 @@ export function renderLeadSheet(options: RenderOptions) {
     showCaret
   );
 
-  // Render chord regions overlay
-  if (svgEl) {
-    renderChordRegions(
-      svgEl,
-      chordTrack,
-      timeSignature,
-      measureMetadata,
-      documentEndUnit
-    );
-  }
+  // Chord regions are now rendered by React overlay (see ChordTrackOverlay component)
+  // if (svgEl) {
+  //   renderChordRegions(
+  //     svgEl,
+  //     chordTrack,
+  //     timeSignature,
+  //     measureMetadata,
+  //     documentEndUnit
+  //   );
+  // }
+
+  // Return layout data for React overlay
+  const unitsPerBar = getBarCapacity(timeSignature);
+  return {
+    measureMetadata,
+    unitsPerBar,
+  };
 }
 
 // Bounding box for a rendered note/rest
@@ -136,7 +143,7 @@ type NoteBBox = {
 };
 
 // Metadata about rendered measures for chord overlay
-type MeasureMetadata = {
+export type MeasureMetadata = {
   measureIndex: number;
   systemIndex: number;
   x: number; // left edge of measure
@@ -145,6 +152,12 @@ type MeasureMetadata = {
   noteStartX: number; // where notes start (after clef/time sig)
   staffTop: number;
   staffBottom: number;
+};
+
+// Layout data returned by renderLeadSheet for React overlay
+export type LeadSheetLayout = {
+  measureMetadata: MeasureMetadata[];
+  unitsPerBar: Unit;
 };
 
 function renderMeasures(

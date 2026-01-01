@@ -4,7 +4,8 @@ import { useObservable } from "../lib/observable";
 import { doc } from "../lead-sheet/Document";
 import { interfaceState } from "../lead-sheet/InterfaceState";
 import { commitChordAction } from "../lead-sheet/actions";
-import { renderLeadSheet } from "../lead-sheet/vexflow-render";
+import { renderLeadSheet, LeadSheetLayout } from "../lead-sheet/vexflow-render";
+import { ChordTrackOverlay } from "./ChordTrackOverlay";
 
 export function LeadSheetEditor() {
   const viewportRef = useRef<HTMLDivElement>(null);
@@ -32,6 +33,7 @@ export function LeadSheetEditor() {
   const [shadowReady, setShadowReady] = useState(false);
   const [editingChordId, setEditingChordId] = useState<string | null>(null);
   const [editingChordText, setEditingChordText] = useState("");
+  const [layout, setLayout] = useState<LeadSheetLayout | null>(null);
 
   // Isolate VexFlow SVG output from app CSS by rendering into a ShadowRoot.
   useEffect(() => {
@@ -90,7 +92,7 @@ export function LeadSheetEditor() {
     if (!shadowReady) return;
     if (!shadowRenderContainerRef.current) return;
 
-    renderLeadSheet({
+    const newLayout = renderLeadSheet({
       container: shadowRenderContainerRef.current,
       events,
       measures,
@@ -104,6 +106,8 @@ export function LeadSheetEditor() {
       eventStartUnits,
       documentEndUnit,
     });
+
+    setLayout(newLayout);
   }, [
     events,
     measures,
@@ -125,7 +129,7 @@ export function LeadSheetEditor() {
     }
   }, [chordMode]);
 
-  // Handle clicks on rendered notes/rests/chords in the shadow DOM
+  // Handle clicks on rendered notes/rests in the shadow DOM
   useEffect(() => {
     const host = shadowHostRef.current;
     if (!host || !host.shadowRoot) return;
@@ -135,18 +139,6 @@ export function LeadSheetEditor() {
       const path = e.composedPath();
       for (const element of path) {
         if (element instanceof Element) {
-          // Check for chord region click
-          const chordIdAttr = element.getAttribute("data-chord-id");
-          if (chordIdAttr !== null) {
-            const region = chordTrack.regions.find((r) => r.id === chordIdAttr);
-            if (region) {
-              setEditingChordId(region.id);
-              setEditingChordText(region.text);
-              e.stopPropagation();
-              return;
-            }
-          }
-
           // Check for melody event click
           const eventIdxAttr = element.getAttribute("data-event-idx");
           if (eventIdxAttr !== null) {
@@ -172,7 +164,7 @@ export function LeadSheetEditor() {
     return () => {
       shadowRoot.removeEventListener("click", handleClick);
     };
-  }, [chordTrack]);
+  }, []);
 
   // Handle chord input changes (legacy modal mode)
   function handleChordInputChange(e: React.ChangeEvent<HTMLInputElement>) {
@@ -206,6 +198,12 @@ export function LeadSheetEditor() {
       e.preventDefault();
       setEditingChordId(null);
     }
+  }
+
+  // Handle chord clicks from the React overlay
+  function handleChordClick(chordId: string, text: string) {
+    setEditingChordId(chordId);
+    setEditingChordText(text);
   }
 
   return (
@@ -260,6 +258,14 @@ export function LeadSheetEditor() {
               height: "100%",
               position: "relative",
             }}
+          />
+
+          {/* Chord track overlay (React layer) */}
+          <ChordTrackOverlay
+            chordTrack={chordTrack}
+            timeSignature={timeSignature}
+            layout={layout}
+            onChordClick={handleChordClick}
           />
         </div>
 
