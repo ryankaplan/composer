@@ -102,32 +102,51 @@ type ChordTrack = {
 - ✅ Helper functions (`src/lead-sheet/measure.ts`):
   - `computeEventStartUnits()`, `computeMelodyEndUnit()`
 
-### Rendering
+### Rendering Architecture
 
-- ✅ Chord regions rendered as SVG boxes above the staff (`src/lead-sheet/vexflow-render.ts`)
+- ✅ **React overlay architecture**: Chord track is rendered as a React component layer above VexFlow
+  - VexFlow renders only notation (notes, rests, staves, caret, selection)
+  - React `ChordTrackOverlay` component renders all chord visuals
+  - Layout contract: `renderLeadSheet()` returns `LeadSheetLayout` with measure metadata
+- ✅ Chord regions rendered as positioned React elements (`src/components/ChordTrackOverlay.tsx`)
 - ✅ Chord text displayed in boxes
-- ✅ Left/right resize handles visible on each chord
+- ✅ Left/right resize handles visible on each chord (not yet interactive)
 - ✅ Measure metadata collected for accurate chord positioning
 - ✅ Multi-system spanning (chords that cross systems render on each system)
 
 ### Editor Interactions
 
-- ✅ Click detection for chord regions (via `data-chord-id` attributes)
+- ✅ Click detection for chord regions (React onClick handlers)
 - ✅ Click-to-edit: clicking a chord opens an inline input overlay
 - ✅ Inline input with Enter/Escape handlers
 - ✅ Keyboard shortcut `Cmd+Shift+C` to insert a chord in the current measure
-- ✅ Legacy modal chord input (`Shift+'`) still works (calls old `attachChord()` method)
+
+### Legacy System Removal
+
+- ✅ **Removed legacy chord system** (no migration):
+  - Removed `MelodyEvent.chord` field (chords on notes)
+  - Removed `chordAnchor` event type (standalone chord markers)
+  - Removed `doc.attachChord()` method
+  - Removed modal chord entry mode (`Shift+'` shortcut)
+  - Removed VexFlow chord symbol rendering
+  - Removed chord-related gating logic in shortcuts
 
 ## Deferred Features (Not Implemented)
 
 ### UI Enhancements
 
-- ❌ **Measure hover + box**: Hovering a measure does not yet show the `+` insertion box
-  - Would require tracking mouse position, rendering hover overlay, handling clicks
+- ❌ **Chord selection state**: No visual selection state for chords yet
+  - Would require selected chord tracking, visual styling, background click handling
+- ❌ **Measure hover + insertion box**: Hovering a measure does not yet show the `+` insertion box
+  - Would require hover tracking, chord-band rendering, click-to-insert with unit mapping
+- ❌ **Inline edit at chord position**: Edit input is currently centered on screen
+  - Should be positioned directly over the clicked chord
 - ❌ **Handle dragging**: Resize handles are rendered but not interactive
-  - Would require mouse drag tracking, beat snapping logic, live preview
+  - Would require pointer drag tracking, beat snapping logic, live preview, single undo commit
 - ❌ **Autocomplete**: No chord suggestion list yet
-  - Would require chord dictionary, fuzzy matching, dropdown UI
+  - Would require chord dictionary, fuzzy matching, dropdown UI with keyboard navigation
+- ❌ **Delete chord shortcut**: No keyboard shortcut to delete selected chord
+  - Would require Backspace/Delete shortcuts with focus detection
 
 ### Advanced Editing
 
@@ -136,33 +155,28 @@ type ChordTrack = {
 - ❌ **Keyboard navigation** between chords (arrow keys)
 - ❌ **Multi-select chords** (for batch operations)
 
-### Data Layer
+### Chord Parsing (Out of Scope)
 
 - ❌ **Chord parsing**: `text` is not parsed into structured data (root, quality, extensions, bass)
-  - Parsing can be added later without changing persistence
 - ❌ **Normalized chord representation**: No canonical spelling stored
-  - Can be derived on-demand from parsed data when needed
-
-### Migration
-
-- ❌ **Legacy chord conversion**: Old `note.chord` and `chordAnchor` events are not migrated
-  - The old chord system still works; new chords use the new track
-  - Please just remove the old chord system, don't worry about migrating data.
+- Note: Parsing can be added later without changing persistence
 
 ## Files Changed
 
 ### New Files
 
 - `src/lead-sheet/chords.ts` - Chord track utility functions
+- `src/components/ChordTrackOverlay.tsx` - React component for rendering chord track
 
 ### Modified Files
 
-- `src/lead-sheet/types.ts` - Added `Unit`, `ChordRegion`, `ChordTrack` types
-- `src/lead-sheet/Document.ts` - Added chord track state, methods, undo integration
-- `src/lead-sheet/measure.ts` - Added unit mapping helpers
-- `src/lead-sheet/vexflow-render.ts` - Added chord region rendering
-- `src/lead-sheet/actions.ts` - Added `insertChordInCurrentMeasureAction()`
-- `src/components/LeadSheetEditor.tsx` - Added chord click detection, inline edit input
+- `src/lead-sheet/types.ts` - Added `Unit`, `ChordRegion`, `ChordTrack` types; removed `MelodyEvent.chord` and `chordAnchor`
+- `src/lead-sheet/Document.ts` - Added chord track state, methods, undo integration; removed `attachChord()`
+- `src/lead-sheet/measure.ts` - Added unit mapping helpers; removed `chordAnchor` special-casing
+- `src/lead-sheet/vexflow-render.ts` - Exports `LeadSheetLayout` and `MeasureMetadata`; removed chord rendering (now in React)
+- `src/lead-sheet/actions.ts` - Added `insertChordInCurrentMeasureAction()`; removed `commitChordAction()` and chord mode gating
+- `src/lead-sheet/InterfaceState.ts` - Removed `chordMode` state
+- `src/components/LeadSheetEditor.tsx` - Integrated `ChordTrackOverlay`; removed legacy modal chord input
 
 ## Usage
 
@@ -192,19 +206,22 @@ _(Keyboard shortcut TBD)_
 
 ## Future Work
 
-### Short Term
+### Short Term (To Complete Original Mock Requirements)
 
-1. Implement measure hover + insertion UI
-2. Add handle dragging with beat snapping
-3. Add keyboard shortcut for deleting selected chord
-4. Add visual selection state for chords
+1. Add chord selection state and visual styling
+2. Implement measure hover + insertion UI with clickUnit mapping
+3. Position inline edit input at the chord location (not centered)
+4. Add autocomplete chord suggestions with keyboard navigation
+5. Implement interactive handle dragging with beat snapping
+6. Add keyboard shortcut for deleting selected chord
 
 ### Medium Term
 
-1. Autocomplete chord suggestions
-2. Chord parsing for playback/analysis
-3. Keyboard navigation between chords
-4. Migrate or coexist with old chord system
+1. Chord parsing for playback/analysis
+2. Keyboard navigation between chords
+3. Move chords (drag entire region left/right)
+4. Split/merge chords
+5. Multi-select chords for batch operations
 
 ### Long Term
 
