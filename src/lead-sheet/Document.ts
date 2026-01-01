@@ -176,7 +176,7 @@ export class Document {
     if (eventIdx < 0 || eventIdx >= events.length) return;
 
     // Set selection to span just this event
-    this.selection.set({ anchor: eventIdx, focus: eventIdx + 1 });
+    this.selection.set({ anchorIdx: eventIdx, headIdx: eventIdx + 1 });
     // Move caret to after the clicked event
     this.caret.set(eventIdx + 1);
   }
@@ -191,10 +191,10 @@ export class Document {
       const currentSelection = this.selection.get();
       if (currentSelection === null) {
         // Start selection from current caret
-        this.selection.set({ anchor: currentCaret, focus: newCaret });
+        this.selection.set({ anchorIdx: currentCaret, headIdx: newCaret });
       } else {
         // Extend selection
-        this.selection.set({ ...currentSelection, focus: newCaret });
+        this.selection.set({ ...currentSelection, headIdx: newCaret });
       }
     } else {
       // Clear selection and move caret
@@ -215,10 +215,10 @@ export class Document {
       const currentSelection = this.selection.get();
       if (currentSelection === null) {
         // Start selection from current caret
-        this.selection.set({ anchor: currentCaret, focus: newCaret });
+        this.selection.set({ anchorIdx: currentCaret, headIdx: newCaret });
       } else {
         // Extend selection
-        this.selection.set({ ...currentSelection, focus: newCaret });
+        this.selection.set({ ...currentSelection, headIdx: newCaret });
       }
     } else {
       // Clear selection and move caret

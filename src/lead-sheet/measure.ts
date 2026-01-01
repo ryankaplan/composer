@@ -103,14 +103,14 @@ export function computeMeasures(
 
 // Normalize selection to start/end range
 export function normalizeSelection(
-  selection: { anchor: number; focus: number } | null
+  selection: { anchorIdx: number; headIdx: number } | null
 ): { start: number; end: number } | null {
   if (!selection) {
     return null;
   }
   return {
-    start: Math.min(selection.anchor, selection.focus),
-    end: Math.max(selection.anchor, selection.focus),
+    start: Math.min(selection.anchorIdx, selection.headIdx),
+    end: Math.max(selection.anchorIdx, selection.headIdx),
   };
 }
 

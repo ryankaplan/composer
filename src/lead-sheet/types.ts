@@ -51,9 +51,10 @@ export type MelodyEvent =
   | { kind: "rest"; id: string; duration: Duration }
   | { kind: "chordAnchor"; id: string; chord: string };
 
+// Indices into the melody event sequence.
 export type Selection = {
-  anchor: number;
-  focus: number;
+  anchorIdx: number;
+  headIdx: number;
 } | null;
 
 export type MeasureStatus = "ok" | "under" | "over";
