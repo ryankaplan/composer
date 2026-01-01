@@ -266,8 +266,8 @@ export function LeadSheetEditor() {
   }
 
   // Handle measure insertion click
-  function handleMeasureInsertClick(measureIndex: number) {
-    doc.insertChordInMeasure(measureIndex, "C");
+  function handleMeasureInsertClick(measureIndex: number, clickUnit: number) {
+    doc.insertChordInMeasure(measureIndex, "C", clickUnit);
   }
 
   // Handle chord region resize commit
@@ -349,68 +349,81 @@ export function LeadSheetEditor() {
         </div>
 
         {/* Chord region edit overlay */}
-        {editingChordId && editingChordPosition && (
-          <Box
-            position="absolute"
-            left={`${Math.max(
+        {editingChordId &&
+          editingChordPosition &&
+          (() => {
+            // Clamp width to minimum 140px, maximum 300px
+            const widthPx = Math.max(
+              140,
+              Math.min(editingChordPosition.width, 300)
+            );
+            // Clamp left position to stay in bounds
+            const leftPx = Math.max(
               0,
-              Math.min(editingChordPosition.x, containerSize.width - 220)
-            )}px`}
-            top={`${Math.max(0, editingChordPosition.y - 8)}px`}
-            zIndex={10}
-          >
-            <Input
-              autoFocus
-              value={editingChordText}
-              onChange={handleChordEditChange}
-              onKeyDown={handleChordEditKeyDown}
-              placeholder="Enter chord (e.g. Cmaj7)"
-              size="sm"
-              width="200px"
-              bg="white"
-              border="2px solid"
-              borderColor="blue.500"
-              boxShadow="0 2px 8px rgba(0, 0, 0, 0.15)"
-            />
+              Math.min(editingChordPosition.x, containerSize.width - widthPx)
+            );
+            const topPx = Math.max(0, editingChordPosition.y);
 
-            {/* Autocomplete dropdown */}
-            {autocompleteSuggestions.length > 0 && (
+            return (
               <Box
                 position="absolute"
-                top="32px"
-                left="0"
-                width="200px"
-                bg="white"
-                border="1px solid"
-                borderColor="gray.300"
-                borderRadius="4px"
-                boxShadow="0 4px 12px rgba(0, 0, 0, 0.15)"
-                maxH="200px"
-                overflowY="auto"
-                zIndex={11}
+                left={`${leftPx}px`}
+                top={`${topPx}px`}
+                zIndex={10}
               >
-                {autocompleteSuggestions.map((suggestion, index) => (
+                <Input
+                  autoFocus
+                  value={editingChordText}
+                  onChange={handleChordEditChange}
+                  onKeyDown={handleChordEditKeyDown}
+                  placeholder="Enter chord (e.g. Cmaj7)"
+                  size="sm"
+                  width={`${widthPx}px`}
+                  bg="white"
+                  border="2px solid"
+                  borderColor="blue.500"
+                  boxShadow="0 2px 8px rgba(0, 0, 0, 0.15)"
+                />
+
+                {/* Autocomplete dropdown */}
+                {autocompleteSuggestions.length > 0 && (
                   <Box
-                    key={suggestion}
-                    px={3}
-                    py={2}
-                    cursor="pointer"
-                    bg={
-                      index === selectedSuggestionIndex
-                        ? "blue.100"
-                        : "transparent"
-                    }
-                    _hover={{ bg: "gray.100" }}
-                    fontSize="sm"
-                    onClick={() => handleSuggestionClick(suggestion)}
+                    position="absolute"
+                    top="32px"
+                    left="0"
+                    width={`${widthPx}px`}
+                    bg="white"
+                    border="1px solid"
+                    borderColor="gray.300"
+                    borderRadius="4px"
+                    boxShadow="0 4px 12px rgba(0, 0, 0, 0.15)"
+                    maxH="200px"
+                    overflowY="auto"
+                    zIndex={11}
                   >
-                    {suggestion}
+                    {autocompleteSuggestions.map((suggestion, index) => (
+                      <Box
+                        key={suggestion}
+                        px={3}
+                        py={2}
+                        cursor="pointer"
+                        bg={
+                          index === selectedSuggestionIndex
+                            ? "blue.100"
+                            : "transparent"
+                        }
+                        _hover={{ bg: "gray.100" }}
+                        fontSize="sm"
+                        onClick={() => handleSuggestionClick(suggestion)}
+                      >
+                        {suggestion}
+                      </Box>
+                    ))}
                   </Box>
-                ))}
+                )}
               </Box>
-            )}
-          </Box>
-        )}
+            );
+          })()}
       </Box>
     </Box>
   );

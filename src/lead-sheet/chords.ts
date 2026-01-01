@@ -55,14 +55,13 @@ export function findRegionsInMeasure(
   return result;
 }
 
-// Find the largest available gap in a measure for inserting a new chord
-// Returns { start, end } for the gap, or null if the measure is completely filled
-export function findInsertionGap(
+// Compute all available gaps in a measure for inserting new chords
+// Returns array of { start, end } gaps within [barStartUnit, barEndUnit)
+export function computeInsertionGaps(
   track: ChordTrack,
   barStartUnit: Unit,
-  barEndUnit: Unit,
-  clickUnit?: Unit
-): { start: Unit; end: Unit } | null {
+  barEndUnit: Unit
+): Array<{ start: Unit; end: Unit }> {
   const regionsInMeasure = findRegionsInMeasure(
     track,
     barStartUnit,
@@ -70,11 +69,10 @@ export function findInsertionGap(
   );
 
   if (regionsInMeasure.length === 0) {
-    // No chords in this measure, return the entire measure
-    return { start: barStartUnit, end: barEndUnit };
+    // No chords in this measure, return the entire measure as one gap
+    return [{ start: barStartUnit, end: barEndUnit }];
   }
 
-  // Build list of gaps between/around regions within the measure bounds
   const gaps: Array<{ start: Unit; end: Unit }> = [];
 
   // Sort regions by start (should already be sorted, but be safe)
@@ -107,13 +105,27 @@ export function findInsertionGap(
     gaps.push({ start: gapAfterStart, end: gapAfterEnd });
   }
 
+  return gaps;
+}
+
+// Find the largest available gap in a measure for inserting a new chord
+// Returns { start, end } for the gap, or null if the measure is completely filled
+export function findInsertionGap(
+  track: ChordTrack,
+  barStartUnit: Unit,
+  barEndUnit: Unit,
+  clickUnit?: Unit
+): { start: Unit; end: Unit } | null {
+  const gaps = computeInsertionGaps(track, barStartUnit, barEndUnit);
+
   if (gaps.length === 0) {
     return null; // Measure is completely filled
   }
 
   // If clickUnit is provided, find the gap containing it
   if (clickUnit !== undefined) {
-    for (const gap of gaps) {
+    for (let i = 0; i < gaps.length; i++) {
+      const gap = gaps[i]!;
       if (clickUnit >= gap.start && clickUnit < gap.end) {
         return gap;
       }
@@ -122,7 +134,8 @@ export function findInsertionGap(
 
   // Otherwise, return the largest gap
   let largestGap = gaps[0]!;
-  for (const gap of gaps) {
+  for (let i = 1; i < gaps.length; i++) {
+    const gap = gaps[i]!;
     if (gap.end - gap.start > largestGap.end - largestGap.start) {
       largestGap = gap;
     }
@@ -142,7 +155,9 @@ export function insertChordRegion(
   text: string
 ): { track: ChordTrack; region: ChordRegion } {
   if (end <= start) {
-    throw new Error(`Cannot insert chord: end (${end}) must be > start (${start})`);
+    throw new Error(
+      `Cannot insert chord: end (${end}) must be > start (${start})`
+    );
   }
 
   const newRegion: ChordRegion = {
@@ -267,4 +282,3 @@ export function clampResizeToNeighbors(
 
   return { start: clampedStart, end: clampedEnd };
 }
-

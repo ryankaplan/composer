@@ -7,7 +7,10 @@ import {
   Unit,
 } from "../lead-sheet/types";
 import { LeadSheetLayout, MeasureMetadata } from "../lead-sheet/vexflow-render";
-import { clampResizeToNeighbors } from "../lead-sheet/chords";
+import {
+  clampResizeToNeighbors,
+  computeInsertionGaps,
+} from "../lead-sheet/chords";
 
 type ChordTrackOverlayProps = {
   chordTrack: ChordTrack;
@@ -23,7 +26,7 @@ type ChordTrackOverlayProps = {
     height: number
   ) => void;
   onBackgroundClick: () => void;
-  onMeasureInsertClick: (measureIndex: number) => void;
+  onMeasureInsertClick: (measureIndex: number, clickUnit: Unit) => void;
   onResizeCommit: (regionId: string, newStart: Unit, newEnd: Unit) => void;
 };
 
@@ -46,6 +49,17 @@ type ChordSegment = {
   height: number;
 };
 
+// A gap box represents a clickable insertion area for a gap
+type GapBox = {
+  measureIndex: number;
+  gapStart: Unit;
+  gapEnd: Unit;
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+};
+
 export function ChordTrackOverlay({
   chordTrack,
   timeSignature,
@@ -56,14 +70,20 @@ export function ChordTrackOverlay({
   onMeasureInsertClick,
   onResizeCommit,
 }: ChordTrackOverlayProps) {
-  const [hoveredMeasureIndex, setHoveredMeasureIndex] = useState<number | null>(
-    null
-  );
+  const [hoveredGapKey, setHoveredGapKey] = useState<string | null>(null);
   const [dragState, setDragState] = useState<DragState | null>(null);
   const overlayRef = useRef<HTMLDivElement>(null);
 
   const segments = computeChordSegments(
     chordTrack,
+    layout.measureMetadata,
+    layout.unitsPerBar
+  );
+
+  // Compute gap boxes for insertion
+  const gapBoxes = computeGapBoxes(
+    chordTrack,
+    timeSignature,
     layout.measureMetadata,
     layout.unitsPerBar
   );
@@ -159,6 +179,9 @@ export function ChordTrackOverlay({
     const region = chordTrack.regions.find((r) => r.id === regionId);
     if (!region) return;
 
+    // Clear hover state when starting drag
+    setHoveredGapKey(null);
+
     setDragState({
       regionId,
       handle,
@@ -190,17 +213,25 @@ export function ChordTrackOverlay({
         onClick={onBackgroundClick}
       />
 
-      {/* Measure insertion hover boxes */}
-      {layout.measureMetadata.map((measure) => (
-        <MeasureInsertionBox
-          key={`measure-insert-${measure.measureIndex}`}
-          measure={measure}
-          isHovered={hoveredMeasureIndex === measure.measureIndex}
-          onHover={() => setHoveredMeasureIndex(measure.measureIndex)}
-          onLeave={() => setHoveredMeasureIndex(null)}
-          onClick={() => onMeasureInsertClick(measure.measureIndex)}
-        />
-      ))}
+      {/* Gap insertion hover boxes - only show when not dragging */}
+      {!dragState &&
+        gapBoxes.map((gapBox) => {
+          const gapKey = `gap-${gapBox.measureIndex}-${gapBox.gapStart}-${gapBox.gapEnd}`;
+          return (
+            <GapInsertionBox
+              key={gapKey}
+              gapBox={gapBox}
+              isHovered={hoveredGapKey === gapKey}
+              onHover={() => setHoveredGapKey(gapKey)}
+              onLeave={() => setHoveredGapKey(null)}
+              onClick={(clickUnit) =>
+                onMeasureInsertClick(gapBox.measureIndex, clickUnit)
+              }
+              overlayRef={overlayRef}
+              layout={layout}
+            />
+          );
+        })}
 
       {displaySegments.map((segment, idx) => (
         <ChordBox
@@ -216,31 +247,51 @@ export function ChordTrackOverlay({
   );
 }
 
-type MeasureInsertionBoxProps = {
-  measure: MeasureMetadata;
+type GapInsertionBoxProps = {
+  gapBox: GapBox;
   isHovered: boolean;
   onHover: () => void;
   onLeave: () => void;
-  onClick: () => void;
+  onClick: (clickUnit: Unit) => void;
+  overlayRef: React.RefObject<HTMLDivElement | null>;
+  layout: LeadSheetLayout;
 };
 
-function MeasureInsertionBox({
-  measure,
+function GapInsertionBox({
+  gapBox,
   isHovered,
   onHover,
   onLeave,
   onClick,
-}: MeasureInsertionBoxProps) {
-  const y = measure.staffTop - 50;
-  const height = 30;
+  overlayRef,
+  layout,
+}: GapInsertionBoxProps) {
+  function handleClick(e: React.MouseEvent) {
+    e.stopPropagation();
+
+    // Convert click position to Unit
+    const rect = overlayRef.current?.getBoundingClientRect();
+    if (!rect) return;
+
+    const mouseX = e.clientX - rect.left;
+    const clickUnit = pixelToUnit(
+      mouseX,
+      layout.measureMetadata,
+      layout.unitsPerBar
+    );
+
+    if (clickUnit !== null) {
+      onClick(clickUnit);
+    }
+  }
 
   return (
     <Box
       position="absolute"
-      left={`${measure.x}px`}
-      top={`${y}px`}
-      width={`${measure.width}px`}
-      height={`${height}px`}
+      left={`${gapBox.x}px`}
+      top={`${gapBox.y}px`}
+      width={`${gapBox.width}px`}
+      height={`${gapBox.height}px`}
       border={isHovered ? "1px dashed rgba(59, 130, 246, 0.4)" : "none"}
       bg={isHovered ? "rgba(147, 197, 253, 0.1)" : "transparent"}
       borderRadius="4px"
@@ -251,10 +302,7 @@ function MeasureInsertionBox({
       justifyContent="center"
       onMouseEnter={onHover}
       onMouseLeave={onLeave}
-      onClick={(e) => {
-        e.stopPropagation();
-        onClick();
-      }}
+      onClick={handleClick}
     >
       {isHovered && (
         <Box
@@ -400,7 +448,7 @@ function ChordBox({
       {showBackground && (
         <Box
           position="absolute"
-          left={`${segment.width + 3}px`}
+          left={`${segment.width}px`}
           top={`${segment.height / 2 - 8}px`}
           width="6px"
           height="16px"
@@ -540,4 +588,54 @@ function applyDragPreviewToSegments(
   }
 
   return result;
+}
+
+// Compute gap boxes for insertion UI
+function computeGapBoxes(
+  chordTrack: ChordTrack,
+  timeSignature: TimeSignature,
+  measureMetadata: MeasureMetadata[],
+  unitsPerBar: number
+): GapBox[] {
+  const gapBoxes: GapBox[] = [];
+
+  for (let i = 0; i < measureMetadata.length; i++) {
+    const measure = measureMetadata[i]!;
+    const barStartUnit = measure.measureIndex * unitsPerBar;
+    const barEndUnit = (measure.measureIndex + 1) * unitsPerBar;
+
+    const gaps = computeInsertionGaps(chordTrack, barStartUnit, barEndUnit);
+
+    for (let j = 0; j < gaps.length; j++) {
+      const gap = gaps[j]!;
+
+      // Convert gap units to pixel coordinates within this measure
+      const startOffsetInBar = gap.start % unitsPerBar;
+      const endOffsetInBar = gap.end % unitsPerBar;
+
+      const startFraction = startOffsetInBar / unitsPerBar;
+      const endFraction =
+        endOffsetInBar === 0 ? 1 : endOffsetInBar / unitsPerBar;
+
+      const noteWidth = measure.width - (measure.noteStartX - measure.x);
+      const startX = measure.noteStartX + startFraction * noteWidth;
+      const endX = measure.noteStartX + endFraction * noteWidth;
+
+      const width = endX - startX;
+      const y = measure.staffTop - 50;
+      const height = 30;
+
+      gapBoxes.push({
+        measureIndex: measure.measureIndex,
+        gapStart: gap.start,
+        gapEnd: gap.end,
+        x: startX,
+        y,
+        width,
+        height,
+      });
+    }
+  }
+
+  return gapBoxes;
 }
