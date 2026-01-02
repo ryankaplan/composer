@@ -1,54 +1,111 @@
 import React from "react";
 import { Box, Flex } from "@chakra-ui/react";
+import { Tooltip } from "@chakra-ui/react/tooltip";
 
 export function ShortcutPalette() {
   const shortcuts = [
-    { keys: "A-G", description: "Insert note" },
-    { keys: "R", description: "Insert rest" },
-    { keys: "← →", description: "Move caret" },
-    { keys: "Shift+← →", description: "Move caret with selection" },
-    { keys: "↑ ↓", description: "Transpose by octave" },
-    { keys: "⌘+↑ ↓", description: "Transpose by semitone" },
-    { keys: "-", description: "Extend note (tie + insert)" },
-    { keys: 'Shift+"', description: "Enter chord mode" },
-    { keys: "⌘+Z", description: "Undo" },
-    { keys: "⌘+Shift+Z", description: "Redo" },
+    {
+      group: "Navigation",
+      items: [
+        { icon: "←→", label: "Move caret", keys: "← →" },
+        { icon: "⇧←→", label: "Move with selection", keys: "Shift+← →" },
+      ],
+    },
+    {
+      group: "Notes",
+      items: [
+        { icon: "A-G", label: "Insert note", keys: "A-G" },
+        { icon: "R", label: "Insert rest", keys: "R" },
+        { icon: "↑↓", label: "Transpose octave", keys: "↑ ↓" },
+        { icon: "⌘↑↓", label: "Transpose semitone", keys: "⌘+↑ ↓" },
+      ],
+    },
+    {
+      group: "Edit",
+      items: [
+        { icon: "♯♭", label: "Accidentals", keys: "[ ] N" },
+        { icon: "⌢", label: "Tie", keys: "T" },
+        { icon: "−", label: "Extend", keys: "-" },
+        { icon: '"', label: "Chord mode", keys: 'Shift+"' },
+      ],
+    },
+    {
+      group: "Undo",
+      items: [
+        { icon: "↶", label: "Undo", keys: "⌘+Z" },
+        { icon: "↷", label: "Redo", keys: "⌘+Shift+Z" },
+      ],
+    },
   ];
 
   return (
     <Box
-      bg="white"
-      borderTop="1px solid"
-      borderColor="gray.200"
+      position="fixed"
+      bottom="24px"
+      left="50%"
+      transform="translateX(-50%)"
+      zIndex="999"
+      bg="surface"
+      borderRadius="floating"
+      boxShadow="floatingLarge"
       px={3}
       py={2}
-      maxHeight="120px"
-      overflowY="auto"
-      boxShadow="0 -1px 3px rgba(0, 0, 0, 0.04)"
+      border="1px solid"
+      borderColor="border"
     >
-      <Flex gap={3} flexWrap="wrap" fontSize="xs">
-        {shortcuts.map((shortcut, index) => (
-          <Flex key={index} alignItems="center" gap={1.5}>
-            <Box
-              as="kbd"
-              fontFamily="system-ui, -apple-system"
-              bg="gray.50"
-              px={1.5}
-              py={0.5}
-              borderRadius="4px"
-              border="1px solid"
-              borderColor="gray.200"
-              fontSize="xs"
-              fontWeight="medium"
-              color="gray.700"
-              whiteSpace="nowrap"
-            >
-              {shortcut.keys}
-            </Box>
-            <Box color="gray.600" fontSize="xs">
-              {shortcut.description}
-            </Box>
-          </Flex>
+      <Flex gap={2} alignItems="center">
+        {shortcuts.map((group, groupIndex) => (
+          <React.Fragment key={group.group}>
+            {groupIndex > 0 && <Box width="1px" height="24px" bg="gray.200" />}
+            <Flex gap={1}>
+              {group.items.map((shortcut, index) => (
+                <Tooltip.Root key={index} positioning={{ placement: "top" }}>
+                  <Tooltip.Trigger asChild>
+                    <Box
+                      as="button"
+                      px={2.5}
+                      py={1.5}
+                      borderRadius="button"
+                      fontSize="sm"
+                      fontWeight="medium"
+                      color="gray.700"
+                      bg="transparent"
+                      cursor="default"
+                      userSelect="none"
+                      transition="all 0.15s ease"
+                      _hover={{
+                        bg: "gray.50",
+                        color: "gray.900",
+                      }}
+                      display="flex"
+                      alignItems="center"
+                      justifyContent="center"
+                      minW="32px"
+                    >
+                      {shortcut.icon}
+                    </Box>
+                  </Tooltip.Trigger>
+                  <Tooltip.Positioner>
+                    <Tooltip.Content
+                      bg="gray.800"
+                      color="white"
+                      px={2.5}
+                      py={1.5}
+                      borderRadius="md"
+                      fontSize="xs"
+                    >
+                      <Box fontWeight="medium" mb={0.5}>
+                        {shortcut.label}
+                      </Box>
+                      <Box color="gray.300" fontSize="2xs">
+                        {shortcut.keys}
+                      </Box>
+                    </Tooltip.Content>
+                  </Tooltip.Positioner>
+                </Tooltip.Root>
+              ))}
+            </Flex>
+          </React.Fragment>
         ))}
       </Flex>
     </Box>

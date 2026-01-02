@@ -91,9 +91,15 @@ export function LeadSheetEditor() {
 
     const observer = new ResizeObserver((entries) => {
       for (const entry of entries) {
-        setContainerSize({
-          width: entry.contentRect.width,
-          height: entry.contentRect.height,
+        const nextWidth = Math.round(entry.contentRect.width);
+        // Important: do NOT track height here.
+        // Tracking height creates a feedback loop because VexFlow rendering updates the
+        // SVG height, which changes the observed height, which triggers another render.
+        setContainerSize((prev) => {
+          if (prev.width === nextWidth) {
+            return prev;
+          }
+          return { ...prev, width: nextWidth };
         });
       }
     });
@@ -107,6 +113,29 @@ export function LeadSheetEditor() {
     if (!shadowReady) return;
     if (!shadowRenderContainerRef.current) return;
 
+    // Compute a stable render height based on content length so the score can scroll,
+    // without tying render height to the observed DOM height (which can cause runaway growth).
+    const systemPaddingX = 20;
+    const measureWidth = 200;
+    const interMeasureGap = 0;
+    const staveHeight = 120;
+    const staveMargin = 10;
+
+    const availableWidth = Math.max(
+      0,
+      containerSize.width - systemPaddingX * 2
+    );
+    const measuresPerSystem = Math.max(
+      1,
+      Math.floor(availableWidth / (measureWidth + interMeasureGap))
+    );
+    const systemCount = Math.max(
+      1,
+      Math.ceil(measures.length / measuresPerSystem)
+    );
+    const renderHeight =
+      staveMargin + systemCount * (staveHeight + staveMargin);
+
     const newLayout = renderLeadSheet({
       container: shadowRenderContainerRef.current,
       events,
@@ -115,7 +144,7 @@ export function LeadSheetEditor() {
       caret,
       selection: normalizedSelection,
       width: containerSize.width,
-      height: containerSize.height,
+      height: renderHeight,
       showCaret: !isPlaying,
       playheadUnit: isPlaying ? playheadUnit : undefined,
     });
@@ -377,20 +406,19 @@ export function LeadSheetEditor() {
   const melodyMeasureCount = computeMeasures(events, timeSignature).length;
 
   return (
-    <Box width="100%" height="100%" position="relative">
+    <Box width="100%" position="relative">
       {/* Editor surface (focusable) - viewport wrapper with stable size */}
       <Box
         ref={editorRef}
         tabIndex={0}
-        p={4}
+        p={8}
+        pb="180px" // Extra padding at bottom for floating palette
         position="relative"
         outline="none"
-        bg="blue.50"
         cursor="default"
-        height="100%"
         _focusVisible={{
-          borderColor: "blue.500",
-          boxShadow: "0 0 0 1px var(--chakra-colors-blue-500)",
+          borderColor: "accent.500",
+          boxShadow: "0 0 0 1px var(--chakra-colors-accent-500)",
         }}
       >
         {/* Viewport wrapper - this is what we observe for resize */}

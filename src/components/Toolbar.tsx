@@ -78,15 +78,22 @@ export function Toolbar() {
   return (
     <Flex
       as="nav"
-      bg="white"
+      position="fixed"
+      top="0"
+      left="0"
+      right="0"
+      zIndex="1000"
+      bg="surface"
       borderBottom="1px solid"
-      borderColor="gray.200"
-      px={3}
-      py={1.5}
+      borderColor="border"
+      px={4}
+      py={2}
       gap={3}
       alignItems="center"
       flexWrap="wrap"
-      boxShadow="0 1px 3px rgba(0, 0, 0, 0.04)"
+      boxShadow="header"
+      backdropFilter="blur(8px)"
+      height="56px"
     >
       {/* Time Signature */}
       <Flex alignItems="center" gap={1.5}>

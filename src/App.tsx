@@ -1,5 +1,5 @@
 import React from "react";
-import { ChakraProvider, Flex } from "@chakra-ui/react";
+import { ChakraProvider, Box } from "@chakra-ui/react";
 import { system } from "./theme";
 import { LeadSheetEditor } from "./components/LeadSheetEditor";
 import { Toolbar } from "./components/Toolbar";
@@ -8,24 +8,33 @@ import { ShortcutPalette } from "./components/ShortcutPalette";
 export function App() {
   return (
     <ChakraProvider value={system}>
-      <Flex
-        direction="column"
+      <Box
+        position="relative"
         height="100vh"
         width="100vw"
+        bg="bg"
         overflow="hidden"
-        bg="gray.50"
       >
-        {/* Top toolbar */}
+        {/* Fixed header toolbar */}
         <Toolbar />
 
-        {/* Middle: Editor area (takes remaining space) */}
-        <Flex flex="1" overflow="hidden">
+        {/* Main content area - full height with scrolling */}
+        <Box
+          position="absolute"
+          top="0"
+          left="0"
+          right="0"
+          bottom="0"
+          paddingTop="56px" // Height for fixed toolbar
+          overflow="auto"
+          bg="bg"
+        >
           <LeadSheetEditor />
-        </Flex>
+        </Box>
 
-        {/* Bottom: Shortcut palette */}
+        {/* Floating shortcut palette */}
         <ShortcutPalette />
-      </Flex>
+      </Box>
     </ChakraProvider>
   );
 }
