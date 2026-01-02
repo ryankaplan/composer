@@ -107,18 +107,6 @@ export function BottomToolbar() {
         {/* Transpose */}
         <Flex gap={1}>
           <ActionButton
-            label={getActionShortcutText("Transpose Octave Up")!}
-            tooltip="Transpose octave up"
-            shortcut={getActionShortcutText("Transpose Octave Up")}
-            onClick={() => performAction("Transpose Octave Up")}
-          />
-          <ActionButton
-            label={getActionShortcutText("Transpose Octave Down")!}
-            tooltip="Transpose octave down"
-            shortcut={getActionShortcutText("Transpose Octave Down")}
-            onClick={() => performAction("Transpose Octave Down")}
-          />
-          <ActionButton
             label={getActionShortcutText("Transpose Semitone Up")!}
             tooltip="Transpose semitone up"
             shortcut={getActionShortcutText("Transpose Semitone Up")}
@@ -129,6 +117,18 @@ export function BottomToolbar() {
             tooltip="Transpose semitone down"
             shortcut={getActionShortcutText("Transpose Semitone Down")}
             onClick={() => performAction("Transpose Semitone Down")}
+          />
+          <ActionButton
+            label={getActionShortcutText("Transpose Octave Up")!}
+            tooltip="Transpose octave up"
+            shortcut={getActionShortcutText("Transpose Octave Up")}
+            onClick={() => performAction("Transpose Octave Up")}
+          />
+          <ActionButton
+            label={getActionShortcutText("Transpose Octave Down")!}
+            tooltip="Transpose octave down"
+            shortcut={getActionShortcutText("Transpose Octave Down")}
+            onClick={() => performAction("Transpose Octave Down")}
           />
         </Flex>
 
@@ -188,14 +188,13 @@ function DurationButton(props: DurationButtonProps) {
           cursor="pointer"
           userSelect="none"
           transition="all 0.15s ease"
-          border={isActive ? "1px solid" : "1px solid transparent"}
-          borderColor={isActive ? "gray.300" : "transparent"}
-          boxShadow={isActive ? "0 1px 2px rgba(0, 0, 0, 0.05)" : "none"}
+          border="none"
+          boxShadow={isActive ? "sm" : "none"}
           display="flex"
           alignItems="center"
           justifyContent="center"
           _hover={{
-            bg: isActive ? "white" : "gray.100",
+            bg: isActive ? "white" : "blackAlpha.50",
             color: "gray.900",
           }}
           _active={{
@@ -239,7 +238,7 @@ function ActionButton(props: ActionButtonProps) {
         <Box
           as="button"
           onClick={onClick}
-          bg="white"
+          bg="transparent"
           color="gray.700"
           px={2}
           py={1}
@@ -249,17 +248,15 @@ function ActionButton(props: ActionButtonProps) {
           cursor="pointer"
           userSelect="none"
           transition="all 0.15s ease"
-          border="1px solid"
-          borderColor="gray.200"
+          border="none"
           minWidth="28px"
           _hover={{
-            bg: "gray.50",
-            borderColor: "gray.300",
+            bg: "blackAlpha.50",
             color: "gray.900",
           }}
           _active={{
             transform: "scale(0.98)",
-            bg: "gray.100",
+            bg: "blackAlpha.100",
           }}
         >
           {label}
