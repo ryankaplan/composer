@@ -107,25 +107,25 @@ export function BottomToolbar() {
         {/* Transpose */}
         <Flex gap={1}>
           <ActionButton
-            label="↑"
+            label={getActionShortcutText("Transpose Octave Up")!}
             tooltip="Transpose octave up"
             shortcut={getActionShortcutText("Transpose Octave Up")}
             onClick={() => performAction("Transpose Octave Up")}
           />
           <ActionButton
-            label="↓"
+            label={getActionShortcutText("Transpose Octave Down")!}
             tooltip="Transpose octave down"
             shortcut={getActionShortcutText("Transpose Octave Down")}
             onClick={() => performAction("Transpose Octave Down")}
           />
           <ActionButton
-            label="⌘↑"
+            label={getActionShortcutText("Transpose Semitone Up")!}
             tooltip="Transpose semitone up"
             shortcut={getActionShortcutText("Transpose Semitone Up")}
             onClick={() => performAction("Transpose Semitone Up")}
           />
           <ActionButton
-            label="⌘↓"
+            label={getActionShortcutText("Transpose Semitone Down")!}
             tooltip="Transpose semitone down"
             shortcut={getActionShortcutText("Transpose Semitone Down")}
             onClick={() => performAction("Transpose Semitone Down")}

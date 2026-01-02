@@ -1,6 +1,10 @@
 import { registerKeyboardShortcuts } from "../lib/keyboard-shortcut-manager";
 import { ShortcutKeys } from "../lib/shortcut-key";
 import { shortcutKeysToString } from "../lib/format-shortcut";
+
+// WARNING: Action 'perform' functions must not return values.
+// Always use block syntax to avoid accidental returns: perform: () => { action(); }
+
 import { doc } from "./Document";
 import { interfaceState } from "./InterfaceState";
 import { PitchLetter, Pitch, pitchToMidi, MelodyEvent } from "./types";
@@ -45,49 +49,65 @@ const ACTIONS = [
     name: "Insert A",
     group: "Notes",
     shortcuts: { keyCombos: [["a"] as ShortcutKeys] },
-    perform: () => insertNoteAction("A"),
+    perform: () => {
+      insertNoteAction("A");
+    },
   },
   {
     name: "Insert B",
     group: "Notes",
     shortcuts: { keyCombos: [["b"] as ShortcutKeys] },
-    perform: () => insertNoteAction("B"),
+    perform: () => {
+      insertNoteAction("B");
+    },
   },
   {
     name: "Insert C",
     group: "Notes",
     shortcuts: { keyCombos: [["c"] as ShortcutKeys] },
-    perform: () => insertNoteAction("C"),
+    perform: () => {
+      insertNoteAction("C");
+    },
   },
   {
     name: "Insert D",
     group: "Notes",
     shortcuts: { keyCombos: [["d"] as ShortcutKeys] },
-    perform: () => insertNoteAction("D"),
+    perform: () => {
+      insertNoteAction("D");
+    },
   },
   {
     name: "Insert E",
     group: "Notes",
     shortcuts: { keyCombos: [["e"] as ShortcutKeys] },
-    perform: () => insertNoteAction("E"),
+    perform: () => {
+      insertNoteAction("E");
+    },
   },
   {
     name: "Insert F",
     group: "Notes",
     shortcuts: { keyCombos: [["f"] as ShortcutKeys] },
-    perform: () => insertNoteAction("F"),
+    perform: () => {
+      insertNoteAction("F");
+    },
   },
   {
     name: "Insert G",
     group: "Notes",
     shortcuts: { keyCombos: [["g"] as ShortcutKeys] },
-    perform: () => insertNoteAction("G"),
+    perform: () => {
+      insertNoteAction("G");
+    },
   },
   {
     name: "Insert Rest",
     group: "Notes",
     shortcuts: { keyCombos: [["r"] as ShortcutKeys] },
-    perform: () => insertRestAction(),
+    perform: () => {
+      insertRestAction();
+    },
   },
 
   // Durations
@@ -95,19 +115,25 @@ const ACTIONS = [
     name: "Set Duration Quarter",
     group: "Duration",
     shortcuts: { keyCombos: [["digit4"] as ShortcutKeys] },
-    perform: () => interfaceState.setCurrentDurationFromKey("4"),
+    perform: () => {
+      interfaceState.setCurrentDurationFromKey("4");
+    },
   },
   {
     name: "Set Duration Eighth",
     group: "Duration",
     shortcuts: { keyCombos: [["digit8"] as ShortcutKeys] },
-    perform: () => interfaceState.setCurrentDurationFromKey("8"),
+    perform: () => {
+      interfaceState.setCurrentDurationFromKey("8");
+    },
   },
   {
     name: "Set Duration Sixteenth",
     group: "Duration",
     shortcuts: { keyCombos: [["digit6"] as ShortcutKeys] },
-    perform: () => interfaceState.setCurrentDurationFromKey("6"),
+    perform: () => {
+      interfaceState.setCurrentDurationFromKey("6");
+    },
   },
 
   // Accidentals
@@ -115,19 +141,25 @@ const ACTIONS = [
     name: "Toggle Sharp",
     group: "Accidentals",
     shortcuts: { keyCombos: [["bracketright"] as ShortcutKeys] },
-    perform: () => toggleAccidentalAction("#"),
+    perform: () => {
+      toggleAccidentalAction("#");
+    },
   },
   {
     name: "Toggle Flat",
     group: "Accidentals",
     shortcuts: { keyCombos: [["bracketleft"] as ShortcutKeys] },
-    perform: () => toggleAccidentalAction("b"),
+    perform: () => {
+      toggleAccidentalAction("b");
+    },
   },
   {
     name: "Naturalize",
     group: "Accidentals",
     shortcuts: { keyCombos: [["n"] as ShortcutKeys] },
-    perform: () => doc.naturalizeSelectionOrLeftNote(),
+    perform: () => {
+      doc.naturalizeSelectionOrLeftNote();
+    },
   },
 
   // Navigation
@@ -135,26 +167,34 @@ const ACTIONS = [
     name: "Extend Selection Left",
     group: "Navigation",
     shortcuts: { keyCombos: [["shift", "arrowleft"] as ShortcutKeys] },
-    perform: () => doc.moveCaretLeft({ extendSelection: true }),
+    perform: () => {
+      doc.moveCaretLeft({ extendSelection: true });
+    },
   },
   {
     name: "Extend Selection Right",
     group: "Navigation",
     shortcuts: { keyCombos: [["shift", "arrowright"] as ShortcutKeys] },
-    perform: () => doc.moveCaretRight({ extendSelection: true }),
+    perform: () => {
+      doc.moveCaretRight({ extendSelection: true });
+    },
   },
 
   {
     name: "Move Caret Left",
     group: "Navigation",
     shortcuts: { keyCombos: [["arrowleft"] as ShortcutKeys] },
-    perform: () => doc.moveCaretLeft({ extendSelection: false }),
+    perform: () => {
+      doc.moveCaretLeft({ extendSelection: false });
+    },
   },
   {
     name: "Move Caret Right",
     group: "Navigation",
     shortcuts: { keyCombos: [["arrowright"] as ShortcutKeys] },
-    perform: () => doc.moveCaretRight({ extendSelection: false }),
+    perform: () => {
+      doc.moveCaretRight({ extendSelection: false });
+    },
   },
 
   // Transpose
@@ -162,25 +202,33 @@ const ACTIONS = [
     name: "Transpose Octave Up",
     group: "Transpose",
     shortcuts: { keyCombos: [["shift", "arrowup"] as ShortcutKeys] },
-    perform: () => doc.transposeSelectionOrLeftNote(12),
+    perform: () => {
+      doc.transposeSelectionOrLeftNote(12);
+    },
   },
   {
     name: "Transpose Octave Down",
     group: "Transpose",
     shortcuts: { keyCombos: [["shift", "arrowdown"] as ShortcutKeys] },
-    perform: () => doc.transposeSelectionOrLeftNote(-12),
+    perform: () => {
+      doc.transposeSelectionOrLeftNote(-12);
+    },
   },
   {
     name: "Transpose Semitone Up",
     group: "Transpose",
     shortcuts: { keyCombos: [["arrowup"] as ShortcutKeys] },
-    perform: () => doc.transposeSelectionOrLeftNote(1),
+    perform: () => {
+      doc.transposeSelectionOrLeftNote(1);
+    },
   },
   {
     name: "Transpose Semitone Down",
     group: "Transpose",
     shortcuts: { keyCombos: [["arrowdown"] as ShortcutKeys] },
-    perform: () => doc.transposeSelectionOrLeftNote(-1),
+    perform: () => {
+      doc.transposeSelectionOrLeftNote(-1);
+    },
   },
 
   // Edit
@@ -216,21 +264,27 @@ const ACTIONS = [
     name: "Toggle Tie",
     group: "Edit",
     shortcuts: { keyCombos: [["t"] as ShortcutKeys] },
-    perform: () => doc.toggleTieAcrossCaret(),
+    perform: () => {
+      doc.toggleTieAcrossCaret();
+    },
   },
   {
     name: "Extend Note",
     group: "Edit",
     shortcuts: { keyCombos: [["minus"] as ShortcutKeys] },
-    perform: () => extendLeftNoteAction(),
+    perform: () => {
+      extendLeftNoteAction();
+    },
   },
 
   // Chords
   {
     name: "Insert Chord",
     group: "Chords",
-    shortcuts: { keyCombos: [["meta", "shift", "c"] as ShortcutKeys] },
-    perform: () => insertChordInCurrentMeasureAction(),
+    shortcuts: { keyCombos: [["k"] as ShortcutKeys] },
+    perform: () => {
+      insertChordInCurrentMeasureAction();
+    },
   },
 
   // Undo/Redo
@@ -238,13 +292,17 @@ const ACTIONS = [
     name: "Undo",
     group: "Undo",
     shortcuts: { keyCombos: [["meta", "z"] as ShortcutKeys] },
-    perform: () => doc.undo(),
+    perform: () => {
+      doc.undo();
+    },
   },
   {
     name: "Redo",
     group: "Undo",
     shortcuts: { keyCombos: [["meta", "shift", "z"] as ShortcutKeys] },
-    perform: () => doc.redo(),
+    perform: () => {
+      doc.redo();
+    },
   },
 
   // Clipboard
@@ -252,19 +310,25 @@ const ACTIONS = [
     name: "Copy",
     group: "Clipboard",
     shortcuts: { keyCombos: [["meta", "c"] as ShortcutKeys] },
-    perform: () => copyAction(),
+    perform: () => {
+      copyAction();
+    },
   },
   {
     name: "Cut",
     group: "Clipboard",
     shortcuts: { keyCombos: [["meta", "x"] as ShortcutKeys] },
-    perform: () => cutAction(),
+    perform: () => {
+      cutAction();
+    },
   },
   {
     name: "Paste",
     group: "Clipboard",
     shortcuts: { keyCombos: [["meta", "v"] as ShortcutKeys] },
-    perform: () => pasteAction(),
+    perform: () => {
+      pasteAction();
+    },
   },
 
   // Playback
@@ -272,7 +336,9 @@ const ACTIONS = [
     name: "Play/Pause",
     group: "Playback",
     shortcuts: { keyCombos: [["space"] as ShortcutKeys] },
-    perform: () => togglePlaybackAction(),
+    perform: () => {
+      togglePlaybackAction();
+    },
   },
 ] as const;
 
