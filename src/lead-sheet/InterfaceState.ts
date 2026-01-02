@@ -3,6 +3,8 @@ import { Duration, Accidental } from "./types";
 
 export type ChordInsertRequest = {
   measureIndex: number;
+  existingChordId?: string;
+  existingChordText?: string;
 };
 
 export class InterfaceState {
@@ -45,8 +47,16 @@ export class InterfaceState {
   }
 
   // Chord insert request (bridge for keyboard actions to request chord editing UI)
-  requestChordInsert(measureIndex: number) {
-    this.chordInsertRequest.set({ measureIndex });
+  requestChordInsert(
+    measureIndex: number,
+    existingChordId?: string,
+    existingChordText?: string
+  ) {
+    this.chordInsertRequest.set({
+      measureIndex,
+      existingChordId,
+      existingChordText,
+    });
   }
 
   clearChordInsertRequest() {

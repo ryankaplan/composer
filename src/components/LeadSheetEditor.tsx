@@ -428,17 +428,32 @@ export function LeadSheetEditor() {
   useEffect(() => {
     if (!chordInsertRequest || !layout) return;
 
-    const measureIndex = chordInsertRequest.measureIndex;
+    const { measureIndex, existingChordId, existingChordText } =
+      chordInsertRequest;
 
-    // Insert empty chord region in the measure's largest gap
-    const chordId = doc.insertChordInMeasure(measureIndex, "");
-    if (!chordId) {
-      // Measure is full, cannot insert
-      interfaceState.clearChordInsertRequest();
-      return;
+    let chordId: string | null;
+    let chordText: string;
+    let wasNew: boolean;
+
+    // Check if editing existing chord or inserting new one
+    if (existingChordId && existingChordText !== undefined) {
+      // Edit existing chord
+      chordId = existingChordId;
+      chordText = existingChordText;
+      wasNew = false;
+    } else {
+      // Insert empty chord region in the measure's largest gap
+      chordId = doc.insertChordInMeasure(measureIndex, "");
+      if (!chordId) {
+        // Measure is full, cannot insert
+        interfaceState.clearChordInsertRequest();
+        return;
+      }
+      chordText = "";
+      wasNew = true;
     }
 
-    // Find the newly created chord region to compute its position
+    // Find the chord region to compute its position
     const chordTrackNow = doc.chords.get();
     const region = chordTrackNow.regions.find((r) => r.id === chordId);
     if (!region) {
@@ -493,14 +508,17 @@ export function LeadSheetEditor() {
     const y = firstMeasure.staffTop - 50;
     const height = 30;
 
-    // Open chord editing UI with empty text
+    // Open chord editing UI
     interfaceState.setSelectedChord(chordId);
     setEditingChordId(chordId);
-    setEditingChordText("");
+    setEditingChordText(chordText);
     setEditingChordPosition({ x: startX, y, width, height });
-    setEditingChordWasNew(true);
-    setAutocompleteSuggestions([]);
-    setSelectedSuggestionIndex(-1);
+    setEditingChordWasNew(wasNew);
+
+    // Initialize autocomplete suggestions
+    const suggestions = matchChords(chordText, 4);
+    setAutocompleteSuggestions(suggestions);
+    setSelectedSuggestionIndex(suggestions.length > 0 ? 0 : -1);
 
     // Clear the request
     interfaceState.clearChordInsertRequest();

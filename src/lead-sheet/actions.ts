@@ -448,6 +448,8 @@ export async function togglePlaybackAction() {
 export function insertChordInCurrentMeasureAction() {
   const measures = doc.measures.get();
   const caret = doc.caret.get();
+  const events = doc.events.get();
+  const chordTrack = doc.chords.get();
 
   // Find which measure the caret is in
   let measureIndex = 0;
@@ -461,8 +463,30 @@ export function insertChordInCurrentMeasureAction() {
     }
   }
 
+  // Convert caret to unit (time position)
+  const caretUnit = caretToUnit(events, caret);
+
+  // Check if there's an existing chord at the caret position
+  let existingChord = null;
+  for (const region of chordTrack.regions) {
+    if (caretUnit >= region.start && caretUnit < region.end) {
+      existingChord = region;
+      break;
+    }
+  }
+
   // Request chord insertion/editing UI (will be handled by LeadSheetEditor)
-  interfaceState.requestChordInsert(measureIndex);
+  if (existingChord) {
+    // Edit existing chord
+    interfaceState.requestChordInsert(
+      measureIndex,
+      existingChord.id,
+      existingChord.text
+    );
+  } else {
+    // Insert new chord
+    interfaceState.requestChordInsert(measureIndex);
+  }
 }
 
 // Delete the selected chord (chord track approach)
