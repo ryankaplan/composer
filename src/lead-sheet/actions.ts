@@ -132,18 +132,6 @@ const ACTIONS = [
 
   // Navigation
   {
-    name: "Move Caret Left",
-    group: "Navigation",
-    shortcuts: { keyCombos: [["arrowleft"] as ShortcutKeys] },
-    perform: () => doc.moveCaretLeft({ extendSelection: false }),
-  },
-  {
-    name: "Move Caret Right",
-    group: "Navigation",
-    shortcuts: { keyCombos: [["arrowright"] as ShortcutKeys] },
-    perform: () => doc.moveCaretRight({ extendSelection: false }),
-  },
-  {
     name: "Extend Selection Left",
     group: "Navigation",
     shortcuts: { keyCombos: [["shift", "arrowleft"] as ShortcutKeys] },
@@ -156,29 +144,42 @@ const ACTIONS = [
     perform: () => doc.moveCaretRight({ extendSelection: true }),
   },
 
+  {
+    name: "Move Caret Left",
+    group: "Navigation",
+    shortcuts: { keyCombos: [["arrowleft"] as ShortcutKeys] },
+    perform: () => doc.moveCaretLeft({ extendSelection: false }),
+  },
+  {
+    name: "Move Caret Right",
+    group: "Navigation",
+    shortcuts: { keyCombos: [["arrowright"] as ShortcutKeys] },
+    perform: () => doc.moveCaretRight({ extendSelection: false }),
+  },
+
   // Transpose
   {
     name: "Transpose Octave Up",
     group: "Transpose",
-    shortcuts: { keyCombos: [["arrowup"] as ShortcutKeys] },
+    shortcuts: { keyCombos: [["shift", "arrowup"] as ShortcutKeys] },
     perform: () => doc.transposeSelectionOrLeftNote(12),
   },
   {
     name: "Transpose Octave Down",
     group: "Transpose",
-    shortcuts: { keyCombos: [["arrowdown"] as ShortcutKeys] },
+    shortcuts: { keyCombos: [["shift", "arrowdown"] as ShortcutKeys] },
     perform: () => doc.transposeSelectionOrLeftNote(-12),
   },
   {
     name: "Transpose Semitone Up",
     group: "Transpose",
-    shortcuts: { keyCombos: [["meta", "arrowup"] as ShortcutKeys] },
+    shortcuts: { keyCombos: [["arrowup"] as ShortcutKeys] },
     perform: () => doc.transposeSelectionOrLeftNote(1),
   },
   {
     name: "Transpose Semitone Down",
     group: "Transpose",
-    shortcuts: { keyCombos: [["meta", "arrowdown"] as ShortcutKeys] },
+    shortcuts: { keyCombos: [["arrowdown"] as ShortcutKeys] },
     perform: () => doc.transposeSelectionOrLeftNote(-1),
   },
 
