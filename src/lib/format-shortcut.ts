@@ -2,7 +2,31 @@ import { ShortcutKey, ShortcutKeys } from "./shortcut-key";
 import { getPlatform } from "./platform";
 
 /**
- * Format a keyboard shortcut for display in tooltips and UI.
+ * Format a keyboard shortcut for display in tooltips and UI (compact format).
+ * Converts codes like `digit4` → `4`, `arrowleft` → `←`, etc.
+ * Platform-aware: shows ⌘ on macOS, Ctrl on Windows.
+ *
+ * Compact format: macOS/iPad uses no separators (e.g., "⌘⇧Z")
+ * Windows/other uses "+" as separator (e.g., "Ctrl+Shift+Z")
+ */
+export function shortcutKeysToString(shortcut: ShortcutKeys): string {
+  const platform = getPlatform();
+  const parts: string[] = [];
+
+  for (const key of shortcut) {
+    parts.push(formatShortcutKey(key, platform));
+  }
+
+  // On macOS/iPad, join without separator; on Windows/other, use "+"
+  if (platform === "macos" || platform === "ipad") {
+    return parts.join("");
+  } else {
+    return parts.join("+");
+  }
+}
+
+/**
+ * Format a keyboard shortcut for display in tooltips and UI (spaced format).
  * Converts codes like `digit4` → `4`, `arrowleft` → `←`, etc.
  * Platform-aware: shows ⌘ on macOS, Ctrl on Windows.
  */

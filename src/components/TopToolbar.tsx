@@ -4,9 +4,11 @@ import { Tooltip } from "@chakra-ui/react/tooltip";
 import { useObservable } from "../lib/observable";
 import { doc } from "../lead-sheet/Document";
 import { interfaceState } from "../lead-sheet/InterfaceState";
-import { toggleAccidentalAction } from "../lead-sheet/actions";
+import {
+  toggleAccidentalAction,
+  getActionShortcutText,
+} from "../lead-sheet/actions";
 import { Duration } from "../lead-sheet/types";
-import { formatShortcut } from "../lib/format-shortcut";
 import {
   QuarterNoteIcon,
   EighthNoteIcon,
@@ -146,21 +148,21 @@ export function TopToolbar() {
             duration="1/4"
             currentDuration={currentDuration}
             onClick={() => handleDurationChange("1/4")}
-            shortcut={formatShortcut(["digit4"])}
+            shortcut={getActionShortcutText("Set Duration Quarter")}
           />
           <DurationButton
             icon={<EighthNoteIcon size={18} />}
             duration="1/8"
             currentDuration={currentDuration}
             onClick={() => handleDurationChange("1/8")}
-            shortcut={formatShortcut(["digit8"])}
+            shortcut={getActionShortcutText("Set Duration Eighth")}
           />
           <DurationButton
             icon={<SixteenthNoteIcon size={18} />}
             duration="1/16"
             currentDuration={currentDuration}
             onClick={() => handleDurationChange("1/16")}
-            shortcut={formatShortcut(["digit6"])}
+            shortcut={getActionShortcutText("Set Duration Sixteenth")}
           />
         </Flex>
       </Flex>
@@ -176,17 +178,20 @@ export function TopToolbar() {
         <Flex gap={1}>
           <IconButton
             label="♮"
-            tooltip={`Natural (${formatShortcut(["n"])})`}
+            tooltip="Natural"
+            shortcut={getActionShortcutText("Naturalize")}
             onClick={handleNaturalClick}
           />
           <IconButton
             label="♯"
-            tooltip={`Sharp (${formatShortcut(["bracketright"])})`}
+            tooltip="Sharp"
+            shortcut={getActionShortcutText("Toggle Sharp")}
             onClick={handleSharpClick}
           />
           <IconButton
             label="♭"
-            tooltip={`Flat (${formatShortcut(["bracketleft"])})`}
+            tooltip="Flat"
+            shortcut={getActionShortcutText("Toggle Flat")}
             onClick={handleFlatClick}
           />
         </Flex>
@@ -198,7 +203,8 @@ export function TopToolbar() {
       {/* Tie */}
       <IconButton
         label="⌢"
-        tooltip={`Toggle Tie (${formatShortcut(["t"])})`}
+        tooltip="Toggle Tie"
+        shortcut={getActionShortcutText("Toggle Tie")}
         onClick={handleTieClick}
       />
 
@@ -261,7 +267,10 @@ export function TopToolbar() {
               borderRadius="md"
               fontSize="xs"
             >
-              {isPlaying ? "Pause" : `Play (${formatShortcut(["space"])})`}
+              {isPlaying ? "Pause" : "Play"}
+              {!isPlaying &&
+                getActionShortcutText("Play/Pause") &&
+                ` (${getActionShortcutText("Play/Pause")})`}
             </Tooltip.Content>
           </Tooltip.Positioner>
         </Tooltip.Root>
@@ -297,7 +306,7 @@ type DurationButtonProps = {
   duration: Duration;
   currentDuration: Duration;
   onClick: () => void;
-  shortcut: string;
+  shortcut: string | null;
 };
 
 function DurationButton(props: DurationButtonProps) {
@@ -337,18 +346,20 @@ function DurationButton(props: DurationButtonProps) {
           {icon}
         </Box>
       </Tooltip.Trigger>
-      <Tooltip.Positioner>
-        <Tooltip.Content
-          bg="gray.800"
-          color="white"
-          px={2}
-          py={1}
-          borderRadius="md"
-          fontSize="xs"
-        >
-          {shortcut}
-        </Tooltip.Content>
-      </Tooltip.Positioner>
+      {shortcut && (
+        <Tooltip.Positioner>
+          <Tooltip.Content
+            bg="gray.800"
+            color="white"
+            px={2}
+            py={1}
+            borderRadius="md"
+            fontSize="xs"
+          >
+            {shortcut}
+          </Tooltip.Content>
+        </Tooltip.Positioner>
+      )}
     </Tooltip.Root>
   );
 }
@@ -356,11 +367,12 @@ function DurationButton(props: DurationButtonProps) {
 type IconButtonProps = {
   label: string;
   tooltip: string;
+  shortcut?: string | null;
   onClick: () => void;
 };
 
 function IconButton(props: IconButtonProps) {
-  const { label, tooltip, onClick } = props;
+  const { label, tooltip, shortcut, onClick } = props;
 
   return (
     <Tooltip.Root positioning={{ placement: "bottom" }}>
@@ -404,6 +416,7 @@ function IconButton(props: IconButtonProps) {
           fontSize="xs"
         >
           {tooltip}
+          {shortcut && ` (${shortcut})`}
         </Tooltip.Content>
       </Tooltip.Positioner>
     </Tooltip.Root>

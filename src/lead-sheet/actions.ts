@@ -1,4 +1,6 @@
-import { registerKeyboardShortcut } from "../lib/keyboard-shortcut-manager";
+import { registerKeyboardShortcuts } from "../lib/keyboard-shortcut-manager";
+import { ShortcutKeys } from "../lib/shortcut-key";
+import { shortcutKeysToString } from "../lib/format-shortcut";
 import { doc } from "./Document";
 import { interfaceState } from "./InterfaceState";
 import { PitchLetter, Pitch, pitchToMidi, MelodyEvent } from "./types";
@@ -36,6 +38,281 @@ function findNearestOctave(targetChroma: number, prevMidi: number): number {
 }
 
 // ==================== ACTIONS ====================
+
+const ACTIONS = [
+  // Notes
+  {
+    name: "Insert A",
+    group: "Notes",
+    shortcuts: { keyCombos: [["a"] as ShortcutKeys] },
+    perform: () => insertNoteAction("A"),
+  },
+  {
+    name: "Insert B",
+    group: "Notes",
+    shortcuts: { keyCombos: [["b"] as ShortcutKeys] },
+    perform: () => insertNoteAction("B"),
+  },
+  {
+    name: "Insert C",
+    group: "Notes",
+    shortcuts: { keyCombos: [["c"] as ShortcutKeys] },
+    perform: () => insertNoteAction("C"),
+  },
+  {
+    name: "Insert D",
+    group: "Notes",
+    shortcuts: { keyCombos: [["d"] as ShortcutKeys] },
+    perform: () => insertNoteAction("D"),
+  },
+  {
+    name: "Insert E",
+    group: "Notes",
+    shortcuts: { keyCombos: [["e"] as ShortcutKeys] },
+    perform: () => insertNoteAction("E"),
+  },
+  {
+    name: "Insert F",
+    group: "Notes",
+    shortcuts: { keyCombos: [["f"] as ShortcutKeys] },
+    perform: () => insertNoteAction("F"),
+  },
+  {
+    name: "Insert G",
+    group: "Notes",
+    shortcuts: { keyCombos: [["g"] as ShortcutKeys] },
+    perform: () => insertNoteAction("G"),
+  },
+  {
+    name: "Insert Rest",
+    group: "Notes",
+    shortcuts: { keyCombos: [["r"] as ShortcutKeys] },
+    perform: () => insertRestAction(),
+  },
+
+  // Durations
+  {
+    name: "Set Duration Quarter",
+    group: "Duration",
+    shortcuts: { keyCombos: [["digit4"] as ShortcutKeys] },
+    perform: () => interfaceState.setCurrentDurationFromKey("4"),
+  },
+  {
+    name: "Set Duration Eighth",
+    group: "Duration",
+    shortcuts: { keyCombos: [["digit8"] as ShortcutKeys] },
+    perform: () => interfaceState.setCurrentDurationFromKey("8"),
+  },
+  {
+    name: "Set Duration Sixteenth",
+    group: "Duration",
+    shortcuts: { keyCombos: [["digit6"] as ShortcutKeys] },
+    perform: () => interfaceState.setCurrentDurationFromKey("6"),
+  },
+
+  // Accidentals
+  {
+    name: "Toggle Sharp",
+    group: "Accidentals",
+    shortcuts: { keyCombos: [["bracketright"] as ShortcutKeys] },
+    perform: () => toggleAccidentalAction("#"),
+  },
+  {
+    name: "Toggle Flat",
+    group: "Accidentals",
+    shortcuts: { keyCombos: [["bracketleft"] as ShortcutKeys] },
+    perform: () => toggleAccidentalAction("b"),
+  },
+  {
+    name: "Naturalize",
+    group: "Accidentals",
+    shortcuts: { keyCombos: [["n"] as ShortcutKeys] },
+    perform: () => doc.naturalizeSelectionOrLeftNote(),
+  },
+
+  // Navigation
+  {
+    name: "Move Caret Left",
+    group: "Navigation",
+    shortcuts: { keyCombos: [["arrowleft"] as ShortcutKeys] },
+    perform: () => doc.moveCaretLeft({ extendSelection: false }),
+  },
+  {
+    name: "Move Caret Right",
+    group: "Navigation",
+    shortcuts: { keyCombos: [["arrowright"] as ShortcutKeys] },
+    perform: () => doc.moveCaretRight({ extendSelection: false }),
+  },
+  {
+    name: "Extend Selection Left",
+    group: "Navigation",
+    shortcuts: { keyCombos: [["shift", "arrowleft"] as ShortcutKeys] },
+    perform: () => doc.moveCaretLeft({ extendSelection: true }),
+  },
+  {
+    name: "Extend Selection Right",
+    group: "Navigation",
+    shortcuts: { keyCombos: [["shift", "arrowright"] as ShortcutKeys] },
+    perform: () => doc.moveCaretRight({ extendSelection: true }),
+  },
+
+  // Transpose
+  {
+    name: "Transpose Octave Up",
+    group: "Transpose",
+    shortcuts: { keyCombos: [["arrowup"] as ShortcutKeys] },
+    perform: () => doc.transposeSelectionOrLeftNote(12),
+  },
+  {
+    name: "Transpose Octave Down",
+    group: "Transpose",
+    shortcuts: { keyCombos: [["arrowdown"] as ShortcutKeys] },
+    perform: () => doc.transposeSelectionOrLeftNote(-12),
+  },
+  {
+    name: "Transpose Semitone Up",
+    group: "Transpose",
+    shortcuts: { keyCombos: [["meta", "arrowup"] as ShortcutKeys] },
+    perform: () => doc.transposeSelectionOrLeftNote(1),
+  },
+  {
+    name: "Transpose Semitone Down",
+    group: "Transpose",
+    shortcuts: { keyCombos: [["meta", "arrowdown"] as ShortcutKeys] },
+    perform: () => doc.transposeSelectionOrLeftNote(-1),
+  },
+
+  // Edit
+  {
+    name: "Delete Backward",
+    group: "Edit",
+    shortcuts: { keyCombos: [["backspace"] as ShortcutKeys] },
+    perform: () => {
+      // If a chord is selected, delete it instead of melody
+      const selectedChordId = interfaceState.selectedChordId.get();
+      if (selectedChordId) {
+        deleteSelectedChordAction();
+      } else {
+        doc.deleteBackward();
+      }
+    },
+  },
+  {
+    name: "Delete Forward",
+    group: "Edit",
+    shortcuts: { keyCombos: [["delete"] as ShortcutKeys] },
+    perform: () => {
+      // If a chord is selected, delete it instead of melody
+      const selectedChordId = interfaceState.selectedChordId.get();
+      if (selectedChordId) {
+        deleteSelectedChordAction();
+      } else {
+        doc.deleteForward();
+      }
+    },
+  },
+  {
+    name: "Toggle Tie",
+    group: "Edit",
+    shortcuts: { keyCombos: [["t"] as ShortcutKeys] },
+    perform: () => doc.toggleTieAcrossCaret(),
+  },
+  {
+    name: "Extend Note",
+    group: "Edit",
+    shortcuts: { keyCombos: [["minus"] as ShortcutKeys] },
+    perform: () => extendLeftNoteAction(),
+  },
+
+  // Chords
+  {
+    name: "Insert Chord",
+    group: "Chords",
+    shortcuts: { keyCombos: [["meta", "shift", "c"] as ShortcutKeys] },
+    perform: () => insertChordInCurrentMeasureAction(),
+  },
+
+  // Undo/Redo
+  {
+    name: "Undo",
+    group: "Undo",
+    shortcuts: { keyCombos: [["meta", "z"] as ShortcutKeys] },
+    perform: () => doc.undo(),
+  },
+  {
+    name: "Redo",
+    group: "Undo",
+    shortcuts: { keyCombos: [["meta", "shift", "z"] as ShortcutKeys] },
+    perform: () => doc.redo(),
+  },
+
+  // Clipboard
+  {
+    name: "Copy",
+    group: "Clipboard",
+    shortcuts: { keyCombos: [["meta", "c"] as ShortcutKeys] },
+    perform: () => copyAction(),
+  },
+  {
+    name: "Cut",
+    group: "Clipboard",
+    shortcuts: { keyCombos: [["meta", "x"] as ShortcutKeys] },
+    perform: () => cutAction(),
+  },
+  {
+    name: "Paste",
+    group: "Clipboard",
+    shortcuts: { keyCombos: [["meta", "v"] as ShortcutKeys] },
+    perform: () => pasteAction(),
+  },
+
+  // Playback
+  {
+    name: "Play/Pause",
+    group: "Playback",
+    shortcuts: { keyCombos: [["space"] as ShortcutKeys] },
+    perform: () => togglePlaybackAction(),
+  },
+] as const;
+
+export type Action = (typeof ACTIONS)[number];
+export type ActionName = Action["name"];
+
+// Build lookup map for O(1) access
+const ACTION_MAP = new Map<ActionName, Action>();
+for (const action of ACTIONS) {
+  ACTION_MAP.set(action.name, action);
+}
+
+/**
+ * Gets an action by name.
+ * Returns null if the action doesn't exist.
+ */
+export function getAction(name: ActionName): Action | null {
+  const action = ACTION_MAP.get(name);
+  return action || null;
+}
+
+/**
+ * Gets the shortcut text for an action as a pretty string for UI display.
+ * Returns the first shortcut if the action has multiple shortcuts.
+ * Returns null if the action doesn't exist or has no shortcuts.
+ *
+ * Example: getActionShortcutText('Undo') -> "⌘Z" (macOS) or "Ctrl+Z" (Windows)
+ */
+export function getActionShortcutText(name: ActionName): string | null {
+  const action = getAction(name);
+  if (!action || !action.shortcuts) {
+    return null;
+  }
+
+  const firstShortcut = action.shortcuts.keyCombos[0];
+  if (!firstShortcut) {
+    return null;
+  }
+
+  return shortcutKeysToString(firstShortcut);
+}
 
 export function insertNoteAction(letter: PitchLetter) {
   const accidental = interfaceState.pendingAccidental.get();
@@ -214,175 +491,26 @@ function findNoteLeftOfCaret(): number | null {
 const unregisterShortcuts: (() => void)[] = [];
 
 export function registerShortcuts() {
-  // Pitch letters (a-g)
-  for (const letter of ["a", "b", "c", "d", "e", "f", "g"] as const) {
-    unregisterShortcuts.push(
-      registerKeyboardShortcut([letter], () =>
-        insertNoteAction(letter.toUpperCase() as PitchLetter)
-      )
-    );
+  // Build registration list from ACTIONS array
+  const registrations: Array<{
+    readonly shortcuts: ReadonlyArray<ShortcutKeys>;
+    readonly perform: () => void | (() => void) | Promise<void>;
+  }> = [];
+
+  for (const action of ACTIONS) {
+    if (action.shortcuts && action.shortcuts.keyCombos.length > 0) {
+      registrations.push({
+        shortcuts: action.shortcuts.keyCombos,
+        perform: action.perform as () => void | (() => void) | Promise<void>,
+      });
+    }
   }
 
-  // Rest (r)
-  unregisterShortcuts.push(
-    registerKeyboardShortcut(["r"], () => insertRestAction())
-  );
-
-  // Duration keys (4, 8, 6)
-  unregisterShortcuts.push(
-    registerKeyboardShortcut(["digit4"], () =>
-      interfaceState.setCurrentDurationFromKey("4")
-    )
-  );
-  unregisterShortcuts.push(
-    registerKeyboardShortcut(["digit8"], () =>
-      interfaceState.setCurrentDurationFromKey("8")
-    )
-  );
-  unregisterShortcuts.push(
-    registerKeyboardShortcut(["digit6"], () =>
-      interfaceState.setCurrentDurationFromKey("6")
-    )
-  );
-
-  // Accidentals: ] for sharp, [ for flat
-  unregisterShortcuts.push(
-    registerKeyboardShortcut(["bracketright"], () =>
-      toggleAccidentalAction("#")
-    )
-  );
-  unregisterShortcuts.push(
-    registerKeyboardShortcut(["bracketleft"], () => toggleAccidentalAction("b"))
-  );
-
-  // Navigation
-  unregisterShortcuts.push(
-    registerKeyboardShortcut(["shift", "arrowleft"], () =>
-      doc.moveCaretLeft({ extendSelection: true })
-    )
-  );
-  unregisterShortcuts.push(
-    registerKeyboardShortcut(["shift", "arrowright"], () =>
-      doc.moveCaretRight({ extendSelection: true })
-    )
-  );
-  unregisterShortcuts.push(
-    registerKeyboardShortcut(["arrowleft"], () =>
-      doc.moveCaretLeft({ extendSelection: false })
-    )
-  );
-  unregisterShortcuts.push(
-    registerKeyboardShortcut(["arrowright"], () =>
-      doc.moveCaretRight({ extendSelection: false })
-    )
-  );
-
-  // Pitch editing: octave transpose
-  unregisterShortcuts.push(
-    registerKeyboardShortcut(["arrowup"], () =>
-      doc.transposeSelectionOrLeftNote(12)
-    )
-  );
-  unregisterShortcuts.push(
-    registerKeyboardShortcut(["arrowdown"], () =>
-      doc.transposeSelectionOrLeftNote(-12)
-    )
-  );
-
-  // Pitch editing: semitone transpose
-  unregisterShortcuts.push(
-    registerKeyboardShortcut(["meta", "arrowup"], () =>
-      doc.transposeSelectionOrLeftNote(1)
-    )
-  );
-  unregisterShortcuts.push(
-    registerKeyboardShortcut(["meta", "arrowdown"], () =>
-      doc.transposeSelectionOrLeftNote(-1)
-    )
-  );
-
-  // Naturalize
-  unregisterShortcuts.push(
-    registerKeyboardShortcut(["n"], () => doc.naturalizeSelectionOrLeftNote())
-  );
-
-  // Delete
-  unregisterShortcuts.push(
-    registerKeyboardShortcut(["backspace"], () => {
-      // If a chord is selected, delete it instead of melody
-      const selectedChordId = interfaceState.selectedChordId.get();
-      if (selectedChordId) {
-        deleteSelectedChordAction();
-      } else {
-        doc.deleteBackward();
-      }
-    })
-  );
-  unregisterShortcuts.push(
-    registerKeyboardShortcut(["delete"], () => {
-      // If a chord is selected, delete it instead of melody
-      const selectedChordId = interfaceState.selectedChordId.get();
-      if (selectedChordId) {
-        deleteSelectedChordAction();
-      } else {
-        doc.deleteForward();
-      }
-    })
-  );
-
-  // Insert chord in current measure (chord track)
-  unregisterShortcuts.push(
-    registerKeyboardShortcut(["meta", "shift", "c"], () =>
-      insertChordInCurrentMeasureAction()
-    )
-  );
-
-  // Tie toggle
-  unregisterShortcuts.push(
-    registerKeyboardShortcut(["t"], () => doc.toggleTieAcrossCaret())
-  );
-
-  // Extend (dash key)
-  unregisterShortcuts.push(
-    registerKeyboardShortcut(["minus"], () => extendLeftNoteAction())
-  );
-
-  // Undo/Redo
-  unregisterShortcuts.push(
-    registerKeyboardShortcut(["meta", "shift", "z"], () => doc.redo())
-  );
-
-  unregisterShortcuts.push(
-    registerKeyboardShortcut(["meta", "z"], () => doc.undo())
-  );
-
-  // Copy
-  unregisterShortcuts.push(
-    registerKeyboardShortcut(["meta", "c"], () => {
-      copyAction();
-    })
-  );
-
-  // Cut
-  unregisterShortcuts.push(
-    registerKeyboardShortcut(["meta", "x"], () => {
-      cutAction();
-    })
-  );
-
-  // Paste
-  unregisterShortcuts.push(
-    registerKeyboardShortcut(["meta", "v"], () => {
-      pasteAction();
-    })
-  );
-
-  // Play/Pause (Space)
-  unregisterShortcuts.push(
-    registerKeyboardShortcut(["space"], () => {
-      togglePlaybackAction();
-    })
-  );
+  // Register all shortcuts in one call
+  const unregisters = registerKeyboardShortcuts(registrations);
+  for (const unregister of unregisters) {
+    unregisterShortcuts.push(unregister);
+  }
 }
 
 export function disposeShortcuts() {
