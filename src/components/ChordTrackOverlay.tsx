@@ -3,6 +3,7 @@ import { Box } from "@chakra-ui/react";
 import {
   ChordTrack,
   TimeSignature,
+  KeySignature,
   ChordRegion,
   Unit,
 } from "../lead-sheet/types";
@@ -11,10 +12,12 @@ import {
   clampResizeToNeighbors,
   computeInsertionGaps,
 } from "../lead-sheet/chords";
+import { isDiatonicChordSymbol } from "../lead-sheet/diatonic-chords";
 
 type ChordTrackOverlayProps = {
   chordTrack: ChordTrack;
   timeSignature: TimeSignature;
+  keySignature: KeySignature;
   layout: LeadSheetLayout;
   selectedChordId: string | null;
   onChordClick: (
@@ -83,6 +86,7 @@ type AppendBox = {
 export function ChordTrackOverlay({
   chordTrack,
   timeSignature,
+  keySignature,
   layout,
   selectedChordId,
   onChordClick,
@@ -288,6 +292,7 @@ export function ChordTrackOverlay({
         <ChordBox
           key={`${segment.regionId}-${idx}`}
           segment={segment}
+          keySignature={keySignature}
           isSelected={segment.regionId === selectedChordId}
           isDragging={dragState?.regionId === segment.regionId}
           onChordClick={onChordClick}
@@ -371,6 +376,7 @@ function GapInsertionBox({
 
 type ChordBoxProps = {
   segment: ChordSegment;
+  keySignature: KeySignature;
   isSelected: boolean;
   isDragging: boolean;
   onChordClick: (
@@ -386,12 +392,14 @@ type ChordBoxProps = {
 
 function ChordBox({
   segment,
+  keySignature,
   isSelected,
   isDragging,
   onChordClick,
   onHandleDragStart,
 }: ChordBoxProps) {
   const [isHovered, setIsHovered] = useState(false);
+  const isDiatonic = isDiatonicChordSymbol(segment.text, keySignature);
 
   function handleClick(e: React.MouseEvent) {
     e.stopPropagation();
@@ -418,6 +426,7 @@ function ChordBox({
   }
 
   const showBackground = isSelected || isHovered || isDragging;
+  const showNonDiatonicHint = !showBackground && !isDiatonic;
 
   return (
     <Box
@@ -442,6 +451,8 @@ function ChordBox({
             ? isSelected
               ? "rgba(59, 130, 246, 0.4)"
               : "rgba(147, 197, 253, 0.3)"
+            : showNonDiatonicHint
+            ? "rgba(251, 191, 36, 0.12)"
             : "transparent"
         }
         border={

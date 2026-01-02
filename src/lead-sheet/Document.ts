@@ -2,6 +2,7 @@ import { Observable, derivedValue, Derived } from "../lib/observable";
 import {
   MelodyEvent,
   TimeSignature,
+  KeySignature,
   Selection,
   Measure,
   Pitch,
@@ -31,6 +32,7 @@ import {
 type DocumentSnapshot = {
   events: MelodyEvent[];
   timeSignature: TimeSignature;
+  keySignature: KeySignature;
   caret: number;
   selection: Selection;
   chords: ChordTrack;
@@ -45,6 +47,7 @@ export class Document {
     beatsPerBar: 4,
     beatUnit: 4,
   });
+  readonly keySignature = new Observable<KeySignature>("C");
   readonly events = new Observable<MelodyEvent[]>([]);
   readonly caret = new Observable<number>(0);
   readonly selection = new Observable<Selection>(null);
@@ -116,6 +119,7 @@ export class Document {
     return {
       events: this.cloneEvents(this.events.get()),
       timeSignature: { ...this.timeSignature.get() },
+      keySignature: this.keySignature.get(),
       caret: this.caret.get(),
       selection: this.selection.get() ? { ...this.selection.get()! } : null,
       chords: this.cloneChordTrack(this.chords.get()),
@@ -145,6 +149,7 @@ export class Document {
     this.isApplyingHistory = true;
     this.events.set(this.cloneEvents(snapshot.events));
     this.timeSignature.set({ ...snapshot.timeSignature });
+    this.keySignature.set(snapshot.keySignature);
     this.caret.set(snapshot.caret);
     this.selection.set(snapshot.selection ? { ...snapshot.selection } : null);
     this.chords.set(this.cloneChordTrack(snapshot.chords));
@@ -525,6 +530,12 @@ export class Document {
   setTimeSignature(timeSignature: TimeSignature) {
     return this.withUndoStep(() => {
       this.timeSignature.set(timeSignature);
+    });
+  }
+
+  setKeySignature(keySignature: KeySignature) {
+    return this.withUndoStep(() => {
+      this.keySignature.set(keySignature);
     });
   }
 

@@ -12,6 +12,7 @@ import {
   MelodyEvent,
   Measure,
   TimeSignature,
+  KeySignature,
   Accidental,
   pitchToMidi,
   ChordTrack,
@@ -25,6 +26,7 @@ export type RenderOptions = {
   events: MelodyEvent[];
   measures: Measure[];
   timeSignature: TimeSignature;
+  keySignature: KeySignature;
   caret: number;
   selection: { start: number; end: number } | null;
   width: number;
@@ -45,12 +47,16 @@ function durationToVexFlow(duration: "1/4" | "1/8" | "1/16"): string {
   }
 }
 
-// Convert pitch to VexFlow key string (e.g., "c/4", "d#/5")
-function pitchToVexFlowKey(letter: string, octave: number): string {
+// Convert pitch to VexFlow key string (e.g., "c/4", "d#/5", "bb/4")
+function pitchToVexFlowKey(
+  letter: string,
+  accidental: Accidental,
+  octave: number
+): string {
   const vexLetter = letter.toLowerCase();
-
-  // Don't include accidental in the key string - we'll add it separately
-  return `${vexLetter}/${octave}`;
+  const accidentalStr =
+    accidental === "#" ? "#" : accidental === "b" ? "b" : "";
+  return `${vexLetter}${accidentalStr}/${octave}`;
 }
 
 // System layout configuration
@@ -66,6 +72,7 @@ export function renderLeadSheet(options: RenderOptions): LeadSheetLayout {
     events,
     measures,
     timeSignature,
+    keySignature,
     width,
     height,
     caret,
@@ -99,6 +106,7 @@ export function renderLeadSheet(options: RenderOptions): LeadSheetLayout {
     events,
     measures,
     timeSignature,
+    keySignature,
     width,
     height,
     caret,
@@ -164,6 +172,7 @@ function renderMeasures(
   events: MelodyEvent[],
   measures: Measure[],
   timeSignature: TimeSignature,
+  keySignature: KeySignature,
   width: number,
   height: number,
   caret: number,
@@ -228,9 +237,10 @@ function renderMeasures(
       // Create stave
       const stave = new Stave(xOffset, yOffset, MEASURE_WIDTH);
 
-      // Add clef and time signature to first measure of each system
+      // Add clef, key signature, and time signature to first measure of each system
       if (isFirstMeasureInSystem) {
         stave.addClef("treble");
+        stave.addKeySignature(keySignature);
       }
       if (isFirstMeasureOverall) {
         stave.addTimeSignature(
@@ -286,6 +296,7 @@ function renderMeasures(
           const vexDuration = durationToVexFlow(event.duration);
           const vexKey = pitchToVexFlowKey(
             event.pitch.letter,
+            event.pitch.accidental,
             event.pitch.octave
           );
 
@@ -294,13 +305,6 @@ function renderMeasures(
             duration: vexDuration,
             clef: "treble",
           });
-
-          // Add accidental if present
-          if (event.pitch.accidental === "#") {
-            note.addModifier(new VexAccidental("#"), 0);
-          } else if (event.pitch.accidental === "b") {
-            note.addModifier(new VexAccidental("b"), 0);
-          }
 
           vexNotes.push(note);
           noteToEventIdx.set(note, globalIdx);
@@ -328,6 +332,9 @@ function renderMeasures(
           });
           voice.setStrict(false); // Allow measures to be under/over
           voice.addTickables(vexNotes);
+
+          // Apply accidentals based on key signature
+          VexAccidental.applyAccidentals([voice], keySignature);
 
           const formatter = new Formatter();
           formatter.joinVoices([voice]);

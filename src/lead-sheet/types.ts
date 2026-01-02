@@ -10,6 +10,43 @@ export type TimeSignature = {
   beatUnit: 4;
 };
 
+// Key signature (major keys only)
+export type KeySignature =
+  | "C"
+  | "G"
+  | "D"
+  | "A"
+  | "E"
+  | "B"
+  | "F#"
+  | "C#"
+  | "F"
+  | "Bb"
+  | "Eb"
+  | "Ab"
+  | "Db"
+  | "Gb"
+  | "Cb";
+
+// List of all supported key signatures in circle-of-fifths order
+export const KEY_SIGNATURES: KeySignature[] = [
+  "C",
+  "G",
+  "D",
+  "A",
+  "E",
+  "B",
+  "F#",
+  "C#",
+  "F",
+  "Bb",
+  "Eb",
+  "Ab",
+  "Db",
+  "Gb",
+  "Cb",
+];
+
 export type PitchLetter = "A" | "B" | "C" | "D" | "E" | "F" | "G";
 
 export type Accidental = "#" | "b" | null;

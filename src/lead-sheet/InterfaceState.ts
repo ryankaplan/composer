@@ -7,10 +7,13 @@ export type ChordInsertRequest = {
   existingChordText?: string;
 };
 
+// Pending accidental: null = use diatonic default, "natural" = explicitly natural
+export type PendingAccidental = "#" | "b" | "natural" | null;
+
 export class InterfaceState {
   // Observable state (not undoable)
   readonly currentDuration = new Observable<Duration>("1/4");
-  readonly pendingAccidental = new Observable<Accidental>(null);
+  readonly pendingAccidental = new Observable<PendingAccidental>(null);
   readonly selectedChordId = new Observable<string | null>(null);
   readonly chordInsertRequest = new Observable<ChordInsertRequest | null>(null);
 
@@ -29,7 +32,7 @@ export class InterfaceState {
   }
 
   // Accidentals
-  setPendingAccidental(accidental: Accidental) {
+  setPendingAccidental(accidental: PendingAccidental) {
     this.pendingAccidental.set(accidental);
   }
 

@@ -36,8 +36,8 @@ export function BottomToolbar() {
       bg="surface"
       borderRadius="floating"
       boxShadow="floatingLarge"
-      px={3}
-      py={2}
+      px={5}
+      py={4}
       border="1px solid"
       borderColor="border"
     >

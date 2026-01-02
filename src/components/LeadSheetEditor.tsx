@@ -20,6 +20,7 @@ export function LeadSheetEditor() {
   const events = useObservable(doc.events);
   const measures = useObservable(doc.measures);
   const timeSignature = useObservable(doc.timeSignature);
+  const keySignature = useObservable(doc.keySignature);
   const caret = useObservable(doc.caret);
   const normalizedSelection = useObservable(doc.normalizedSelection);
   const chordTrack = useObservable(doc.chords);
@@ -143,6 +144,7 @@ export function LeadSheetEditor() {
       events,
       measures,
       timeSignature,
+      keySignature,
       caret,
       selection: normalizedSelection,
       width: containerSize.width,
@@ -156,6 +158,7 @@ export function LeadSheetEditor() {
     events,
     measures,
     timeSignature,
+    keySignature,
     caret,
     normalizedSelection,
     containerSize,
@@ -215,7 +218,7 @@ export function LeadSheetEditor() {
     setEditingChordText(newText);
 
     // Update autocomplete suggestions
-    const suggestions = matchChords(newText, 4);
+    const suggestions = matchChords(newText, keySignature, 4);
     setAutocompleteSuggestions(suggestions);
     setSelectedSuggestionIndex(suggestions.length > 0 ? 0 : -1);
   }
@@ -312,7 +315,7 @@ export function LeadSheetEditor() {
     setEditingChordWasNew(false); // Clicking existing chord, not new
 
     // Initialize autocomplete suggestions
-    const suggestions = matchChords(text, 4);
+    const suggestions = matchChords(text, keySignature, 4);
     setAutocompleteSuggestions(suggestions);
     setSelectedSuggestionIndex(suggestions.length > 0 ? 0 : -1);
   }
@@ -516,7 +519,7 @@ export function LeadSheetEditor() {
     setEditingChordWasNew(wasNew);
 
     // Initialize autocomplete suggestions
-    const suggestions = matchChords(chordText, 4);
+    const suggestions = matchChords(chordText, keySignature, 4);
     setAutocompleteSuggestions(suggestions);
     setSelectedSuggestionIndex(suggestions.length > 0 ? 0 : -1);
 
@@ -585,6 +588,7 @@ export function LeadSheetEditor() {
             <ChordTrackOverlay
               chordTrack={chordTrack}
               timeSignature={timeSignature}
+              keySignature={keySignature}
               layout={layout}
               selectedChordId={selectedChordId}
               onChordClick={handleChordClick}

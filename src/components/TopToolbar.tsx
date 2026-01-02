@@ -7,9 +7,11 @@ import { getActionShortcutText } from "../lead-sheet/actions";
 import { playbackEngine } from "../playback/engine";
 import { buildPlaybackIR } from "../playback/build-ir";
 import { caretToUnit } from "../playback/time";
+import { KEY_SIGNATURES, KeySignature } from "../lead-sheet/types";
 
 export function TopToolbar() {
   const timeSignature = useObservable(doc.timeSignature);
+  const keySignature = useObservable(doc.keySignature);
   const caret = useObservable(doc.caret);
   const events = useObservable(doc.events);
   const documentEndUnit = useObservable(doc.documentEndUnit);
@@ -19,6 +21,11 @@ export function TopToolbar() {
   function handleTimeSignatureChange(e: React.ChangeEvent<HTMLSelectElement>) {
     const beatsPerBar = parseInt(e.target.value) as 3 | 4;
     doc.setTimeSignature({ beatsPerBar, beatUnit: 4 });
+  }
+
+  function handleKeySignatureChange(e: React.ChangeEvent<HTMLSelectElement>) {
+    const key = e.target.value as KeySignature;
+    doc.setKeySignature(key);
   }
 
   async function handlePlay() {
@@ -101,25 +108,37 @@ export function TopToolbar() {
           </select>
         </Flex>
 
-        {/* Key Signature (placeholder) */}
+        {/* Key Signature */}
         <Flex alignItems="center" gap={1.5}>
           <Box fontSize="xs" color="gray.600" fontWeight="medium">
             Key
           </Box>
           <select
-            disabled
+            id="key-sig"
+            value={keySignature}
+            onChange={handleKeySignatureChange}
             style={{
               padding: "3px 6px",
               borderRadius: "4px",
               border: "1px solid #e2e8f0",
-              backgroundColor: "#f7fafc",
+              backgroundColor: "white",
               fontSize: "13px",
-              cursor: "not-allowed",
+              cursor: "pointer",
               outline: "none",
-              color: "#a0aec0",
+              transition: "all 0.15s ease",
+            }}
+            onMouseEnter={(e) => {
+              e.currentTarget.style.borderColor = "#cbd5e0";
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.borderColor = "#e2e8f0";
             }}
           >
-            <option value="C">C Major</option>
+            {KEY_SIGNATURES.map((key) => (
+              <option key={key} value={key}>
+                {key} Major
+              </option>
+            ))}
           </select>
         </Flex>
       </Flex>

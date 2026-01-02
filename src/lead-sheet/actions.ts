@@ -11,6 +11,7 @@ import { PitchLetter, Pitch, pitchToMidi, MelodyEvent } from "./types";
 import { playbackEngine } from "../playback/engine";
 import { buildPlaybackIR } from "../playback/build-ir";
 import { caretToUnit } from "../playback/time";
+import { getDiatonicAccidental } from "./key-signature";
 
 // Default octave for first note (C4 = MIDI 60)
 const DEFAULT_OCTAVE = 4;
@@ -158,7 +159,7 @@ const ACTIONS = [
     group: "Accidentals",
     shortcuts: { keyCombos: [["n"] as ShortcutKeys] },
     perform: () => {
-      doc.naturalizeSelectionOrLeftNote();
+      naturalizeAction();
     },
   },
 
@@ -382,8 +383,18 @@ export function getActionShortcutText(name: ActionName): string | null {
 }
 
 export function insertNoteAction(letter: PitchLetter) {
-  const accidental = interfaceState.pendingAccidental.get();
   const duration = interfaceState.currentDuration.get();
+  const pendingAccidental = interfaceState.pendingAccidental.get();
+  const keySignature = doc.keySignature.get();
+
+  // Determine accidental: pending overrides diatonic default
+  // "natural" pending = explicitly null, otherwise use the pending or diatonic
+  const accidental =
+    pendingAccidental === "natural"
+      ? null
+      : pendingAccidental !== null
+      ? pendingAccidental
+      : getDiatonicAccidental(keySignature, letter);
 
   // Start with default octave
   let octave = DEFAULT_OCTAVE;
@@ -424,6 +435,18 @@ export function toggleAccidentalAction(accidental: "#" | "b") {
   } else {
     // No selection and no note left of caret: set as pending accidental
     interfaceState.setPendingAccidental(accidental);
+  }
+}
+
+export function naturalizeAction() {
+  const selectedIndices = getSelectedNoteIndices();
+
+  // If we have a selection or note to the left, apply to document
+  if (selectedIndices.length > 0 || findNoteLeftOfCaret() !== null) {
+    doc.naturalizeSelectionOrLeftNote();
+  } else {
+    // No selection and no note left of caret: set as pending natural
+    interfaceState.setPendingAccidental("natural");
   }
 }
 
