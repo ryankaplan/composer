@@ -461,8 +461,8 @@ export function insertChordInCurrentMeasureAction() {
     }
   }
 
-  // Insert a placeholder chord
-  doc.insertChordInMeasure(measureIndex, "C");
+  // Request chord insertion/editing UI (will be handled by LeadSheetEditor)
+  interfaceState.requestChordInsert(measureIndex);
 }
 
 // Delete the selected chord (chord track approach)

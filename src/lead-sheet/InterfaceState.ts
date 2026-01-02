@@ -1,11 +1,16 @@
 import { Observable } from "../lib/observable";
 import { Duration, Accidental } from "./types";
 
+export type ChordInsertRequest = {
+  measureIndex: number;
+};
+
 export class InterfaceState {
   // Observable state (not undoable)
   readonly currentDuration = new Observable<Duration>("1/4");
   readonly pendingAccidental = new Observable<Accidental>(null);
   readonly selectedChordId = new Observable<string | null>(null);
+  readonly chordInsertRequest = new Observable<ChordInsertRequest | null>(null);
 
   // Duration
   setCurrentDurationFromKey(key: "4" | "8" | "6") {
@@ -37,6 +42,15 @@ export class InterfaceState {
 
   clearSelectedChord() {
     this.selectedChordId.set(null);
+  }
+
+  // Chord insert request (bridge for keyboard actions to request chord editing UI)
+  requestChordInsert(measureIndex: number) {
+    this.chordInsertRequest.set({ measureIndex });
+  }
+
+  clearChordInsertRequest() {
+    this.chordInsertRequest.set(null);
   }
 }
 

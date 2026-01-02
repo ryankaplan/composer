@@ -26,6 +26,7 @@ export function LeadSheetEditor() {
   const eventStartUnits = useObservable(doc.eventStartUnits);
   const documentEndUnit = useObservable(doc.documentEndUnit);
   const selectedChordId = useObservable(interfaceState.selectedChordId);
+  const chordInsertRequest = useObservable(interfaceState.chordInsertRequest);
   const isPlaying = useObservable(playbackEngine.isPlaying);
   const playheadUnit = useObservable(playbackEngine.playheadUnit);
 
@@ -43,6 +44,7 @@ export function LeadSheetEditor() {
     width: number;
     height: number;
   } | null>(null);
+  const [editingChordWasNew, setEditingChordWasNew] = useState(false);
   const [autocompleteSuggestions, setAutocompleteSuggestions] = useState<
     string[]
   >([]);
@@ -193,6 +195,7 @@ export function LeadSheetEditor() {
       doc.clearSelection();
       setEditingChordId(null);
       setEditingChordPosition(null);
+      setEditingChordWasNew(false);
       setAutocompleteSuggestions([]);
       setSelectedSuggestionIndex(0);
       interfaceState.clearSelectedChord();
@@ -243,16 +246,31 @@ export function LeadSheetEditor() {
       } else if (editingChordId && editingChordText.trim()) {
         // No suggestions or invalid index, use the typed text
         doc.updateChordRegionText(editingChordId, editingChordText.trim());
+      } else if (
+        editingChordId &&
+        !editingChordText.trim() &&
+        editingChordWasNew
+      ) {
+        // Empty text on a newly created chord - delete it
+        doc.deleteChordRegion(editingChordId);
       }
 
       setEditingChordId(null);
       setEditingChordPosition(null);
+      setEditingChordWasNew(false);
       setAutocompleteSuggestions([]);
       setSelectedSuggestionIndex(0);
     } else if (e.key === "Escape") {
       e.preventDefault();
+
+      // If this was a newly created chord with empty text, delete it
+      if (editingChordId && editingChordWasNew && !editingChordText.trim()) {
+        doc.deleteChordRegion(editingChordId);
+      }
+
       setEditingChordId(null);
       setEditingChordPosition(null);
+      setEditingChordWasNew(false);
       setAutocompleteSuggestions([]);
       setSelectedSuggestionIndex(0);
     } else if (e.key === "ArrowDown") {
@@ -272,6 +290,7 @@ export function LeadSheetEditor() {
     }
     setEditingChordId(null);
     setEditingChordPosition(null);
+    setEditingChordWasNew(false);
     setAutocompleteSuggestions([]);
     setSelectedSuggestionIndex(0);
     interfaceState.clearSelectedChord();
@@ -290,6 +309,7 @@ export function LeadSheetEditor() {
     setEditingChordId(chordId);
     setEditingChordText(text);
     setEditingChordPosition({ x, y, width, height });
+    setEditingChordWasNew(false); // Clicking existing chord, not new
 
     // Initialize autocomplete suggestions
     const suggestions = matchChords(text, 4);
@@ -304,6 +324,7 @@ export function LeadSheetEditor() {
     }
     setEditingChordId(null);
     setEditingChordPosition(null);
+    setEditingChordWasNew(false);
     setAutocompleteSuggestions([]);
     setSelectedSuggestionIndex(0);
   }
@@ -313,6 +334,7 @@ export function LeadSheetEditor() {
     interfaceState.clearSelectedChord();
     setEditingChordId(null);
     setEditingChordPosition(null);
+    setEditingChordWasNew(false);
     setAutocompleteSuggestions([]);
     setSelectedSuggestionIndex(0);
   }
@@ -401,6 +423,88 @@ export function LeadSheetEditor() {
       });
     }
   }, [isPlaying, playheadUnit, layout]);
+
+  // Handle chord insert requests from keyboard actions
+  useEffect(() => {
+    if (!chordInsertRequest || !layout) return;
+
+    const measureIndex = chordInsertRequest.measureIndex;
+
+    // Insert empty chord region in the measure's largest gap
+    const chordId = doc.insertChordInMeasure(measureIndex, "");
+    if (!chordId) {
+      // Measure is full, cannot insert
+      interfaceState.clearChordInsertRequest();
+      return;
+    }
+
+    // Find the newly created chord region to compute its position
+    const chordTrackNow = doc.chords.get();
+    const region = chordTrackNow.regions.find((r) => r.id === chordId);
+    if (!region) {
+      interfaceState.clearChordInsertRequest();
+      return;
+    }
+
+    // Compute position using the same logic as ChordTrackOverlay
+    const unitsPerBar = layout.unitsPerBar;
+    const startBar = Math.floor(region.start / unitsPerBar);
+    const endBar = Math.floor((region.end - 1) / unitsPerBar);
+
+    // Find measures this region spans
+    const spannedMeasures = layout.measureMetadata.filter(
+      (m) => m.measureIndex >= startBar && m.measureIndex <= endBar
+    );
+
+    if (spannedMeasures.length === 0) {
+      interfaceState.clearChordInsertRequest();
+      return;
+    }
+
+    // Use the first system this region appears on
+    const firstMeasure = spannedMeasures[0];
+    if (!firstMeasure) {
+      interfaceState.clearChordInsertRequest();
+      return;
+    }
+
+    // Calculate x position within first measure
+    const startOffsetInBar = region.start % unitsPerBar;
+    const startFraction = startOffsetInBar / unitsPerBar;
+    const firstMeasureNoteWidth =
+      firstMeasure.width - (firstMeasure.noteStartX - firstMeasure.x);
+    const startX =
+      firstMeasure.noteStartX + startFraction * firstMeasureNoteWidth;
+
+    // Calculate width (use last measure in the span for this system)
+    const lastMeasure = spannedMeasures[spannedMeasures.length - 1];
+    if (!lastMeasure) {
+      interfaceState.clearChordInsertRequest();
+      return;
+    }
+
+    const endOffsetInBar = region.end % unitsPerBar;
+    const endFraction = endOffsetInBar === 0 ? 1 : endOffsetInBar / unitsPerBar;
+    const lastMeasureNoteWidth =
+      lastMeasure.width - (lastMeasure.noteStartX - lastMeasure.x);
+    const endX = lastMeasure.noteStartX + endFraction * lastMeasureNoteWidth;
+
+    const width = endX - startX;
+    const y = firstMeasure.staffTop - 50;
+    const height = 30;
+
+    // Open chord editing UI with empty text
+    interfaceState.setSelectedChord(chordId);
+    setEditingChordId(chordId);
+    setEditingChordText("");
+    setEditingChordPosition({ x: startX, y, width, height });
+    setEditingChordWasNew(true);
+    setAutocompleteSuggestions([]);
+    setSelectedSuggestionIndex(-1);
+
+    // Clear the request
+    interfaceState.clearChordInsertRequest();
+  }, [chordInsertRequest, layout]);
 
   // Compute melody measure count (un-padded)
   const melodyMeasureCount = computeMeasures(events, timeSignature).length;
