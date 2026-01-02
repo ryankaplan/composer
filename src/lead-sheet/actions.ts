@@ -2,6 +2,9 @@ import { registerKeyboardShortcut } from "../lib/keyboard-shortcut-manager";
 import { doc } from "./Document";
 import { interfaceState } from "./InterfaceState";
 import { PitchLetter, Pitch, pitchToMidi, MelodyEvent } from "./types";
+import { playbackEngine } from "../playback/engine";
+import { buildPlaybackIR } from "../playback/build-ir";
+import { caretToUnit } from "../playback/time";
 
 // Default octave for first note (C4 = MIDI 60)
 const DEFAULT_OCTAVE = 4;
@@ -77,6 +80,23 @@ export function toggleAccidentalAction(accidental: "#" | "b") {
   } else {
     // No selection and no note left of caret: set as pending accidental
     interfaceState.setPendingAccidental(accidental);
+  }
+}
+
+// Toggle playback (play/pause)
+export async function togglePlaybackAction() {
+  const isPlaying = playbackEngine.isPlaying.get();
+
+  if (isPlaying) {
+    playbackEngine.pause();
+  } else {
+    const events = doc.events.get();
+    const caret = doc.caret.get();
+    const documentEndUnit = doc.documentEndUnit.get();
+    const chordTrack = doc.chords.get();
+    const caretUnit = caretToUnit(events, caret);
+    const ir = buildPlaybackIR(events, caretUnit, documentEndUnit, chordTrack);
+    await playbackEngine.playIR(ir, caretUnit);
   }
 }
 
@@ -354,6 +374,13 @@ export function registerShortcuts() {
   unregisterShortcuts.push(
     registerKeyboardShortcut(["meta", "v"], () => {
       pasteAction();
+    })
+  );
+
+  // Play/Pause (Space)
+  unregisterShortcuts.push(
+    registerKeyboardShortcut(["space"], () => {
+      togglePlaybackAction();
     })
   );
 }

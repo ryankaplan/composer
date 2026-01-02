@@ -7,6 +7,7 @@ import { ChordTrackOverlay } from "./ChordTrackOverlay";
 import { interfaceState } from "../lead-sheet/InterfaceState";
 import { matchChords } from "../lead-sheet/chord-autocomplete";
 import { computeMeasures } from "../lead-sheet/measure";
+import { playbackEngine } from "../playback/engine";
 
 export function LeadSheetEditor() {
   const viewportRef = useRef<HTMLDivElement>(null);
@@ -24,6 +25,8 @@ export function LeadSheetEditor() {
   const eventStartUnits = useObservable(doc.eventStartUnits);
   const documentEndUnit = useObservable(doc.documentEndUnit);
   const selectedChordId = useObservable(interfaceState.selectedChordId);
+  const isPlaying = useObservable(playbackEngine.isPlaying);
+  const playheadUnit = useObservable(playbackEngine.playheadUnit);
 
   const [containerSize, setContainerSize] = useState({
     width: 800,
@@ -112,7 +115,8 @@ export function LeadSheetEditor() {
       selection: normalizedSelection,
       width: containerSize.width,
       height: containerSize.height,
-      showCaret: true,
+      showCaret: !isPlaying,
+      playheadUnit: isPlaying ? playheadUnit : undefined,
     });
 
     setLayout(newLayout);
@@ -127,6 +131,8 @@ export function LeadSheetEditor() {
     chordTrack,
     eventStartUnits,
     documentEndUnit,
+    isPlaying,
+    playheadUnit,
   ]);
 
   // Handle clicks on rendered notes/rests in the shadow DOM
@@ -301,6 +307,55 @@ export function LeadSheetEditor() {
   function handleMeasureAppend() {
     doc.extendDocumentByBars(1);
   }
+
+  // Auto-scroll to keep playhead visible during playback
+  useEffect(() => {
+    if (
+      !isPlaying ||
+      !layout ||
+      !editorRef.current ||
+      playheadUnit === undefined
+    ) {
+      return;
+    }
+
+    // Find which system the playhead is in
+    const unitsPerBar = layout.unitsPerBar;
+    const measureIndex = Math.floor(playheadUnit / unitsPerBar);
+    const systemIndex = Math.floor(measureIndex / layout.measuresPerSystem);
+
+    // Calculate the Y position of this system
+    const systemY =
+      layout.staveMargin +
+      systemIndex * (layout.staveHeight + layout.staveMargin);
+
+    // Get the current scroll position and viewport height
+    const editorElement = editorRef.current;
+    const scrollTop = editorElement.scrollTop;
+    const viewportHeight = editorElement.clientHeight;
+
+    // Define scroll margins (how close to edge before scrolling)
+    const topMargin = 100;
+    const bottomMargin = 100;
+
+    // Check if system is out of view or too close to edges
+    const systemTopInViewport = systemY - scrollTop;
+    const systemBottomInViewport = systemTopInViewport + layout.staveHeight;
+
+    if (systemTopInViewport < topMargin) {
+      // System is too close to top or above viewport - scroll up
+      editorElement.scrollTo({
+        top: systemY - topMargin,
+        behavior: "smooth",
+      });
+    } else if (systemBottomInViewport > viewportHeight - bottomMargin) {
+      // System is too close to bottom or below viewport - scroll down
+      editorElement.scrollTo({
+        top: systemY - topMargin,
+        behavior: "smooth",
+      });
+    }
+  }, [isPlaying, playheadUnit, layout]);
 
   // Compute melody measure count (un-padded)
   const melodyMeasureCount = computeMeasures(events, timeSignature).length;

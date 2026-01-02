@@ -17,6 +17,7 @@ import {
   ChordTrack,
   Unit,
   getBarCapacity,
+  durationToUnits,
 } from "./types";
 
 export type RenderOptions = {
@@ -29,6 +30,7 @@ export type RenderOptions = {
   width: number;
   height: number;
   showCaret: boolean;
+  playheadUnit?: Unit;
 };
 
 // Convert duration to VexFlow duration string
@@ -101,7 +103,8 @@ export function renderLeadSheet(options: RenderOptions): LeadSheetLayout {
     height,
     caret,
     selection,
-    showCaret
+    showCaret,
+    options.playheadUnit
   );
 
   // Return layout data for React overlay
@@ -165,7 +168,8 @@ function renderMeasures(
   height: number,
   caret: number,
   selection: { start: number; end: number } | null,
-  showCaret: boolean
+  showCaret: boolean,
+  playheadUnit?: Unit
 ): MeasureMetadata[] {
   // Map global event index to its bounding box after rendering
   const eventBBoxes = new Map<number, NoteBBox>();
@@ -408,7 +412,12 @@ function renderMeasures(
       events.length,
       eventToSystemIdx,
       eventToStaff,
-      firstSystemStaff
+      firstSystemStaff,
+      playheadUnit,
+      events,
+      measures,
+      measureMetadata,
+      timeSignature
     );
   }
 
@@ -493,7 +502,12 @@ function renderOverlays(
   totalEvents: number,
   eventToSystemIdx: Map<number, number>,
   eventToStaff: Map<number, { top: number; bottom: number }>,
-  firstSystemStaff: { top: number; bottom: number; noteStartX: number } | null
+  firstSystemStaff: { top: number; bottom: number; noteStartX: number } | null,
+  playheadUnit?: Unit,
+  events?: MelodyEvent[],
+  measures?: Measure[],
+  measureMetadata?: MeasureMetadata[],
+  timeSignature?: TimeSignature
 ) {
   const NS = "http://www.w3.org/2000/svg";
 
@@ -519,6 +533,10 @@ function renderOverlays(
   caretGroup.setAttribute("id", "caret-overlay");
   caretGroup.setAttribute("pointer-events", "none");
 
+  const playheadGroup = document.createElementNS(NS, "g");
+  playheadGroup.setAttribute("id", "playhead-overlay");
+  playheadGroup.setAttribute("pointer-events", "none");
+
   const hitboxGroup = document.createElementNS(NS, "g");
   hitboxGroup.setAttribute("id", "hitbox-overlay");
 
@@ -532,6 +550,7 @@ function renderOverlays(
     svgEl.appendChild(selectionGroup);
   }
   svgEl.appendChild(caretGroup);
+  svgEl.appendChild(playheadGroup);
   svgEl.appendChild(hitboxGroup);
 
   // 1) Render selection highlights
@@ -652,7 +671,78 @@ function renderOverlays(
     }
   }
 
-  // 3) Add transparent hitboxes for each rendered event
+  // 3) Render playhead (if active)
+  if (
+    playheadUnit !== undefined &&
+    events &&
+    measures &&
+    measures.length > 0 &&
+    measureMetadata &&
+    timeSignature
+  ) {
+    // Find which measure the playhead is in
+    const unitsPerBar = getBarCapacity(timeSignature);
+    const measureIndex = Math.floor(playheadUnit / unitsPerBar);
+
+    // Find the measure metadata
+    const measureMeta = measureMetadata.find(
+      (m) => m.measureIndex === measureIndex
+    );
+
+    if (measureMeta) {
+      // Calculate position within the measure
+      const measureStartUnit = measureIndex * unitsPerBar;
+      const unitWithinMeasure = playheadUnit - measureStartUnit;
+      const fractionWithinMeasure = unitWithinMeasure / unitsPerBar;
+
+      // Interpolate X position within the measure's note area
+      const noteAreaWidth =
+        measureMeta.width - (measureMeta.noteStartX - measureMeta.x);
+      const px = measureMeta.noteStartX + fractionWithinMeasure * noteAreaWidth;
+
+      // Get staff metrics from the measure
+      const staffPadding = 8;
+      const py = measureMeta.staffTop - staffPadding;
+      const ph =
+        measureMeta.staffBottom - measureMeta.staffTop + 2 * staffPadding;
+
+      const line = document.createElementNS(NS, "line");
+      line.setAttribute("x1", String(px));
+      line.setAttribute("y1", String(py));
+      line.setAttribute("x2", String(px));
+      line.setAttribute("y2", String(py + ph));
+      line.setAttribute("stroke", "rgb(239, 68, 68)"); // red.500
+      line.setAttribute("stroke-width", "2");
+      line.setAttribute("pointer-events", "none");
+      playheadGroup.appendChild(line);
+    } else if (measureIndex >= 0 && firstSystemStaff) {
+      // Fallback: playhead is beyond rendered measures (at the end)
+      // Use the last rendered measure or first system staff
+      const lastMeasure = measureMetadata[measureMetadata.length - 1];
+      if (lastMeasure) {
+        const px =
+          lastMeasure.noteStartX +
+          lastMeasure.width -
+          (lastMeasure.noteStartX - lastMeasure.x);
+        const staffPadding = 8;
+        const py = lastMeasure.staffTop - staffPadding;
+        const ph =
+          lastMeasure.staffBottom - lastMeasure.staffTop + 2 * staffPadding;
+
+        const line = document.createElementNS(NS, "line");
+        line.setAttribute("x1", String(px));
+        line.setAttribute("y1", String(py));
+        line.setAttribute("x2", String(px));
+        line.setAttribute("y2", String(py + ph));
+        line.setAttribute("stroke", "rgb(239, 68, 68)"); // red.500
+        line.setAttribute("stroke-width", "2");
+        line.setAttribute("pointer-events", "none");
+        playheadGroup.appendChild(line);
+      }
+    }
+  }
+
+  // 4) Add transparent hitboxes for each rendered event
   for (const [eventIdx, bbox] of eventBBoxes.entries()) {
     const hitbox = document.createElementNS(NS, "rect");
     hitbox.setAttribute("x", String(bbox.x));

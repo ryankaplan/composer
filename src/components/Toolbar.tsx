@@ -1,5 +1,5 @@
 import React from "react";
-import { Box, Flex } from "@chakra-ui/react";
+import { Box, Flex, Input } from "@chakra-ui/react";
 import { Tooltip } from "@chakra-ui/react/tooltip";
 import { useObservable } from "../lib/observable";
 import { doc } from "../lead-sheet/Document";
@@ -12,6 +12,9 @@ import {
   EighthNoteIcon,
   SixteenthNoteIcon,
 } from "./NoteIcons";
+import { playbackEngine } from "../playback/engine";
+import { buildPlaybackIR } from "../playback/build-ir";
+import { caretToUnit } from "../playback/time";
 
 export function Toolbar() {
   const timeSignature = useObservable(doc.timeSignature);
@@ -19,10 +22,37 @@ export function Toolbar() {
   const pendingAccidental = useObservable(interfaceState.pendingAccidental);
   const caret = useObservable(doc.caret);
   const events = useObservable(doc.events);
+  const documentEndUnit = useObservable(doc.documentEndUnit);
+  const isPlaying = useObservable(playbackEngine.isPlaying);
+  const bpm = useObservable(playbackEngine.bpm);
 
   function handleTimeSignatureChange(e: React.ChangeEvent<HTMLSelectElement>) {
     const beatsPerBar = parseInt(e.target.value) as 3 | 4;
     doc.setTimeSignature({ beatsPerBar, beatUnit: 4 });
+  }
+
+  async function handlePlayPause() {
+    if (isPlaying) {
+      playbackEngine.pause();
+    } else {
+      // Build IR from current document state
+      const chordTrack = doc.chords.get();
+      const caretUnit = caretToUnit(events, caret);
+      const ir = buildPlaybackIR(
+        events,
+        caretUnit,
+        documentEndUnit,
+        chordTrack
+      );
+      await playbackEngine.playIR(ir, caretUnit);
+    }
+  }
+
+  function handleBpmChange(e: React.ChangeEvent<HTMLInputElement>) {
+    const newBpm = parseInt(e.target.value);
+    if (!isNaN(newBpm) && newBpm > 0 && newBpm <= 300) {
+      playbackEngine.bpm.set(newBpm);
+    }
   }
 
   function handleDurationChange(duration: Duration) {
@@ -169,7 +199,7 @@ export function Toolbar() {
       <Box flex="1" />
 
       {/* Status indicators */}
-      <Flex gap={2} fontSize="xs" color="gray.500">
+      <Flex gap={2} fontSize="xs" color="gray.500" alignItems="center">
         {pendingAccidental && (
           <Box
             bg="blue.50"
@@ -183,9 +213,76 @@ export function Toolbar() {
             Pending: {pendingAccidental === "#" ? "♯" : "♭"}
           </Box>
         )}
-        <Box>
-          Position: {caret} / {events.length}
-        </Box>
+      </Flex>
+
+      {/* Divider */}
+      <Box width="1px" height="20px" bg="gray.200" />
+
+      {/* Playback controls */}
+      <Flex alignItems="center" gap={2}>
+        <Tooltip.Root positioning={{ placement: "bottom" }}>
+          <Tooltip.Trigger asChild>
+            <Box
+              as="button"
+              onClick={handlePlayPause}
+              bg={isPlaying ? "blue.500" : "white"}
+              color={isPlaying ? "white" : "gray.700"}
+              px={3}
+              py={1}
+              borderRadius="4px"
+              fontSize="sm"
+              fontWeight="medium"
+              cursor="pointer"
+              userSelect="none"
+              transition="all 0.15s ease"
+              border="1px solid"
+              borderColor={isPlaying ? "blue.500" : "gray.200"}
+              _hover={{
+                bg: isPlaying ? "blue.600" : "gray.50",
+                borderColor: isPlaying ? "blue.600" : "gray.300",
+              }}
+              _active={{
+                transform: "scale(0.98)",
+              }}
+            >
+              {isPlaying ? "⏸" : "▶"}
+            </Box>
+          </Tooltip.Trigger>
+          <Tooltip.Positioner>
+            <Tooltip.Content
+              bg="gray.800"
+              color="white"
+              px={2}
+              py={1}
+              borderRadius="md"
+              fontSize="xs"
+            >
+              {isPlaying ? "Pause" : `Play (${formatShortcut(["space"])})`}
+            </Tooltip.Content>
+          </Tooltip.Positioner>
+        </Tooltip.Root>
+
+        <Flex alignItems="center" gap={1}>
+          <Box fontSize="xs" color="gray.600" fontWeight="medium">
+            BPM:
+          </Box>
+          <Input
+            type="number"
+            value={bpm}
+            onChange={handleBpmChange}
+            min={20}
+            max={300}
+            width="60px"
+            size="xs"
+            textAlign="center"
+            bg="white"
+            border="1px solid"
+            borderColor="gray.200"
+            _hover={{
+              borderColor: "gray.300",
+            }}
+          />
+        </Flex>
       </Flex>
     </Flex>
   );
