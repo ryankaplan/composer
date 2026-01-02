@@ -215,9 +215,6 @@ export function Toolbar() {
         )}
       </Flex>
 
-      {/* Divider */}
-      <Box width="1px" height="20px" bg="gray.200" />
-
       {/* Playback controls */}
       <Flex alignItems="center" gap={2}>
         <Tooltip.Root positioning={{ placement: "bottom" }}>

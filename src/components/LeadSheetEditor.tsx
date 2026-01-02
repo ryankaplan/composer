@@ -8,6 +8,7 @@ import { interfaceState } from "../lead-sheet/InterfaceState";
 import { matchChords } from "../lead-sheet/chord-autocomplete";
 import { computeMeasures } from "../lead-sheet/measure";
 import { playbackEngine } from "../playback/engine";
+import { FaIcon } from "./FaIcon";
 
 export function LeadSheetEditor() {
   const viewportRef = useRef<HTMLDivElement>(null);
@@ -182,14 +183,22 @@ export function LeadSheetEditor() {
     setEditingChordText(newText);
 
     // Update autocomplete suggestions
-    const suggestions = matchChords(newText, 10);
+    const suggestions = matchChords(newText, 4);
     setAutocompleteSuggestions(suggestions);
-    setSelectedSuggestionIndex(0);
+    setSelectedSuggestionIndex(suggestions.length > 0 ? 0 : -1);
   }
 
   function handleChordEditKeyDown(e: React.KeyboardEvent<HTMLInputElement>) {
+    const totalOptions = autocompleteSuggestions.length + 1; // +1 for delete option
+
     if (e.key === "Enter") {
       e.preventDefault();
+
+      // If delete option is selected
+      if (selectedSuggestionIndex === autocompleteSuggestions.length) {
+        handleDeleteChord();
+        return;
+      }
 
       // If there are suggestions and one is selected, use it
       if (
@@ -219,17 +228,24 @@ export function LeadSheetEditor() {
       setSelectedSuggestionIndex(0);
     } else if (e.key === "ArrowDown") {
       e.preventDefault();
-      if (autocompleteSuggestions.length > 0) {
-        setSelectedSuggestionIndex((prev) =>
-          prev < autocompleteSuggestions.length - 1 ? prev + 1 : prev
-        );
-      }
+      setSelectedSuggestionIndex((prev) =>
+        prev < totalOptions - 1 ? prev + 1 : prev
+      );
     } else if (e.key === "ArrowUp") {
       e.preventDefault();
-      if (autocompleteSuggestions.length > 0) {
-        setSelectedSuggestionIndex((prev) => (prev > 0 ? prev - 1 : 0));
-      }
+      setSelectedSuggestionIndex((prev) => (prev > 0 ? prev - 1 : 0));
     }
+  }
+
+  function handleDeleteChord() {
+    if (editingChordId) {
+      doc.deleteChordRegion(editingChordId);
+    }
+    setEditingChordId(null);
+    setEditingChordPosition(null);
+    setAutocompleteSuggestions([]);
+    setSelectedSuggestionIndex(0);
+    interfaceState.clearSelectedChord();
   }
 
   // Handle chord clicks from the React overlay
@@ -247,9 +263,9 @@ export function LeadSheetEditor() {
     setEditingChordPosition({ x, y, width, height });
 
     // Initialize autocomplete suggestions
-    const suggestions = matchChords(text, 10);
+    const suggestions = matchChords(text, 4);
     setAutocompleteSuggestions(suggestions);
-    setSelectedSuggestionIndex(0);
+    setSelectedSuggestionIndex(suggestions.length > 0 ? 0 : -1);
   }
 
   // Handle clicking on an autocomplete suggestion
@@ -445,47 +461,45 @@ export function LeadSheetEditor() {
                 <MeasureAppendBox rect={rect} onClick={handleMeasureAppend} />
               );
             })()}
-        </div>
 
-        {/* Chord region edit overlay */}
-        {editingChordId &&
-          editingChordPosition &&
-          (() => {
-            // Clamp width to minimum 140px, maximum 300px
-            const widthPx = Math.max(
-              140,
-              Math.min(editingChordPosition.width, 300)
-            );
-            // Clamp left position to stay in bounds
-            const leftPx = Math.max(
-              0,
-              Math.min(editingChordPosition.x, containerSize.width - widthPx)
-            );
-            const topPx = Math.max(0, editingChordPosition.y);
+          {/* Chord region edit overlay */}
+          {editingChordId &&
+            editingChordPosition &&
+            (() => {
+              // Clamp width to minimum 140px, maximum 300px
+              const widthPx = Math.max(
+                140,
+                Math.min(editingChordPosition.width, 300)
+              );
+              // Clamp left position to stay in bounds
+              const leftPx = Math.max(
+                0,
+                Math.min(editingChordPosition.x, containerSize.width - widthPx)
+              );
+              const topPx = Math.max(0, editingChordPosition.y);
 
-            return (
-              <Box
-                position="absolute"
-                left={`${leftPx}px`}
-                top={`${topPx}px`}
-                zIndex={10}
-              >
-                <Input
-                  autoFocus
-                  value={editingChordText}
-                  onChange={handleChordEditChange}
-                  onKeyDown={handleChordEditKeyDown}
-                  placeholder="Enter chord (e.g. Cmaj7)"
-                  size="sm"
-                  width={`${widthPx}px`}
-                  bg="white"
-                  border="2px solid"
-                  borderColor="blue.500"
-                  boxShadow="0 2px 8px rgba(0, 0, 0, 0.15)"
-                />
+              return (
+                <Box
+                  position="absolute"
+                  left={`${leftPx}px`}
+                  top={`${topPx}px`}
+                  zIndex={10}
+                >
+                  <Input
+                    autoFocus
+                    value={editingChordText}
+                    onChange={handleChordEditChange}
+                    onKeyDown={handleChordEditKeyDown}
+                    placeholder="Enter chord (e.g. Cmaj7)"
+                    size="sm"
+                    width={`${widthPx}px`}
+                    bg="white"
+                    border="2px solid"
+                    borderColor="blue.500"
+                    boxShadow="0 2px 8px rgba(0, 0, 0, 0.15)"
+                  />
 
-                {/* Autocomplete dropdown */}
-                {autocompleteSuggestions.length > 0 && (
+                  {/* Autocomplete dropdown */}
                   <Box
                     position="absolute"
                     top="32px"
@@ -518,11 +532,35 @@ export function LeadSheetEditor() {
                         {suggestion}
                       </Box>
                     ))}
+
+                    {/* Delete Option */}
+                    <Box
+                      px={3}
+                      py={2}
+                      cursor="pointer"
+                      bg={
+                        selectedSuggestionIndex ===
+                        autocompleteSuggestions.length
+                          ? "red.100"
+                          : "transparent"
+                      }
+                      _hover={{ bg: "red.50" }}
+                      color="red.600"
+                      fontSize="sm"
+                      onClick={handleDeleteChord}
+                      borderTop="1px solid"
+                      borderColor="gray.200"
+                      display="flex"
+                      alignItems="center"
+                    >
+                      <FaIcon name="trash" style={{ marginRight: "8px" }} />
+                      Delete Chord
+                    </Box>
                   </Box>
-                )}
-              </Box>
-            );
-          })()}
+                </Box>
+              );
+            })()}
+        </div>
       </Box>
     </Box>
   );
