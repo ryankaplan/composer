@@ -7,7 +7,7 @@ Needed for MVP transcription
 Nice to have for MVP transcription
 
 - [x] Better chord entry
-  - [ ] Let you enter chords with no melody
+  - [x] Let you enter chords with no melody
 
 Needed for multiple MVP transcriptions
 
