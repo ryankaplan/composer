@@ -16,7 +16,7 @@ import { playbackEngine } from "../playback/engine";
 import { buildPlaybackIR } from "../playback/build-ir";
 import { caretToUnit } from "../playback/time";
 
-export function Toolbar() {
+export function TopToolbar() {
   const timeSignature = useObservable(doc.timeSignature);
   const currentDuration = useObservable(interfaceState.currentDuration);
   const pendingAccidental = useObservable(interfaceState.pendingAccidental);

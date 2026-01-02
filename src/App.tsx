@@ -2,8 +2,8 @@ import React from "react";
 import { ChakraProvider, Box } from "@chakra-ui/react";
 import { system } from "./theme";
 import { LeadSheetEditor } from "./components/LeadSheetEditor";
-import { Toolbar } from "./components/Toolbar";
-import { ShortcutPalette } from "./components/ShortcutPalette";
+import { TopToolbar } from "./components/TopToolbar";
+import { BottomToolbar } from "./components/BottomToolbar";
 
 export function App() {
   return (
@@ -16,7 +16,7 @@ export function App() {
         overflow="hidden"
       >
         {/* Fixed header toolbar */}
-        <Toolbar />
+        <TopToolbar />
 
         {/* Main content area - full height with scrolling */}
         <Box
@@ -33,7 +33,7 @@ export function App() {
         </Box>
 
         {/* Floating shortcut palette */}
-        <ShortcutPalette />
+        <BottomToolbar />
       </Box>
     </ChakraProvider>
   );
