@@ -45,6 +45,9 @@ const customConfig = defineConfig({
         surface: {
           default: { value: "{colors.surface}" },
         },
+        controlHover: {
+          default: { value: "rgba(0, 0, 0, 0.04)" },
+        },
       },
     },
   },

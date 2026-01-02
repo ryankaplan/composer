@@ -1,108 +1,30 @@
 import React from "react";
 import { Box, Flex } from "@chakra-ui/react";
 import { Tooltip } from "@chakra-ui/react/tooltip";
-import { getActionShortcutText } from "../lead-sheet/actions";
+import { useObservable } from "../lib/observable";
+import { interfaceState } from "../lead-sheet/InterfaceState";
+import { doc } from "../lead-sheet/Document";
+import { getAction, getActionShortcutText } from "../lead-sheet/actions";
+import { Duration } from "../lead-sheet/types";
+import {
+  QuarterNoteIcon,
+  EighthNoteIcon,
+  SixteenthNoteIcon,
+} from "./NoteIcons";
 
 export function BottomToolbar() {
-  // Helper to combine multiple shortcuts with a separator
-  function combineShortcuts(...actionNames: string[]): string {
-    const shortcuts: string[] = [];
-    for (const name of actionNames) {
-      const shortcut = getActionShortcutText(name as any);
-      if (shortcut) {
-        shortcuts.push(shortcut);
-      }
+  const currentDuration = useObservable(interfaceState.currentDuration);
+
+  function performAction(actionName: string) {
+    const action = getAction(actionName as any);
+    if (action) {
+      action.perform();
     }
-    return shortcuts.join(" ");
   }
 
-  const shortcuts = [
-    {
-      group: "Navigation",
-      items: [
-        {
-          icon: "←→",
-          label: "Move caret",
-          keys: combineShortcuts("Move Caret Left", "Move Caret Right"),
-        },
-        {
-          icon: "⇧←→",
-          label: "Move with selection",
-          keys: combineShortcuts(
-            "Extend Selection Left",
-            "Extend Selection Right"
-          ),
-        },
-      ],
-    },
-    {
-      group: "Notes",
-      items: [
-        { icon: "A-G", label: "Insert note", keys: "A-G" },
-        {
-          icon: "R",
-          label: "Insert rest",
-          keys: getActionShortcutText("Insert Rest") || "R",
-        },
-        {
-          icon: "↑↓",
-          label: "Transpose octave",
-          keys: combineShortcuts(
-            "Transpose Octave Up",
-            "Transpose Octave Down"
-          ),
-        },
-        {
-          icon: "⌘↑↓",
-          label: "Transpose semitone",
-          keys: combineShortcuts(
-            "Transpose Semitone Up",
-            "Transpose Semitone Down"
-          ),
-        },
-      ],
-    },
-    {
-      group: "Edit",
-      items: [
-        {
-          icon: "♯♭",
-          label: "Accidentals",
-          keys: combineShortcuts("Toggle Flat", "Toggle Sharp", "Naturalize"),
-        },
-        {
-          icon: "⌢",
-          label: "Tie",
-          keys: getActionShortcutText("Toggle Tie") || "T",
-        },
-        {
-          icon: "−",
-          label: "Extend",
-          keys: getActionShortcutText("Extend Note") || "-",
-        },
-        {
-          icon: '"',
-          label: "Chord mode",
-          keys: getActionShortcutText("Insert Chord") || "⌘⇧C",
-        },
-      ],
-    },
-    {
-      group: "Undo",
-      items: [
-        {
-          icon: "↶",
-          label: "Undo",
-          keys: getActionShortcutText("Undo") || "⌘Z",
-        },
-        {
-          icon: "↷",
-          label: "Redo",
-          keys: getActionShortcutText("Redo") || "⌘⇧Z",
-        },
-      ],
-    },
-  ];
+  function handleDurationChange(duration: Duration) {
+    interfaceState.setCurrentDuration(duration);
+  }
 
   return (
     <Box
@@ -120,60 +42,242 @@ export function BottomToolbar() {
       borderColor="border"
     >
       <Flex gap={2} alignItems="center">
-        {shortcuts.map((group, groupIndex) => (
-          <React.Fragment key={group.group}>
-            {groupIndex > 0 && <Box width="1px" height="24px" bg="gray.200" />}
-            <Flex gap={1}>
-              {group.items.map((shortcut, index) => (
-                <Tooltip.Root key={index} positioning={{ placement: "top" }}>
-                  <Tooltip.Trigger asChild>
-                    <Box
-                      as="button"
-                      px={2.5}
-                      py={1.5}
-                      borderRadius="button"
-                      fontSize="sm"
-                      fontWeight="medium"
-                      color="gray.700"
-                      bg="transparent"
-                      cursor="default"
-                      userSelect="none"
-                      transition="all 0.15s ease"
-                      _hover={{
-                        bg: "gray.50",
-                        color: "gray.900",
-                      }}
-                      display="flex"
-                      alignItems="center"
-                      justifyContent="center"
-                      minW="32px"
-                    >
-                      {shortcut.icon}
-                    </Box>
-                  </Tooltip.Trigger>
-                  <Tooltip.Positioner>
-                    <Tooltip.Content
-                      bg="gray.800"
-                      color="white"
-                      px={2.5}
-                      py={1.5}
-                      borderRadius="md"
-                      fontSize="xs"
-                    >
-                      <Box fontWeight="medium" mb={0.5}>
-                        {shortcut.label}
-                      </Box>
-                      <Box color="gray.300" fontSize="2xs">
-                        {shortcut.keys}
-                      </Box>
-                    </Tooltip.Content>
-                  </Tooltip.Positioner>
-                </Tooltip.Root>
-              ))}
-            </Flex>
-          </React.Fragment>
-        ))}
+        {/* Duration */}
+        <Flex alignItems="center" gap={1.5}>
+          <Box fontSize="xs" color="gray.600" fontWeight="medium">
+            Duration
+          </Box>
+          <Flex
+            bg="gray.50"
+            borderRadius="6px"
+            padding="2px"
+            border="1px solid"
+            borderColor="gray.200"
+          >
+            <DurationButton
+              icon={<QuarterNoteIcon size={16} />}
+              duration="1/4"
+              currentDuration={currentDuration}
+              onClick={() => handleDurationChange("1/4")}
+              shortcut={getActionShortcutText("Set Duration Quarter")}
+            />
+            <DurationButton
+              icon={<EighthNoteIcon size={16} />}
+              duration="1/8"
+              currentDuration={currentDuration}
+              onClick={() => handleDurationChange("1/8")}
+              shortcut={getActionShortcutText("Set Duration Eighth")}
+            />
+            <DurationButton
+              icon={<SixteenthNoteIcon size={16} />}
+              duration="1/16"
+              currentDuration={currentDuration}
+              onClick={() => handleDurationChange("1/16")}
+              shortcut={getActionShortcutText("Set Duration Sixteenth")}
+            />
+          </Flex>
+        </Flex>
+
+        <Box width="1px" height="24px" bg="gray.200" />
+
+        {/* Accidentals */}
+        <Flex gap={1}>
+          <ActionButton
+            label="♮"
+            tooltip="Natural"
+            shortcut={getActionShortcutText("Naturalize")}
+            onClick={() => performAction("Naturalize")}
+          />
+          <ActionButton
+            label="♯"
+            tooltip="Sharp"
+            shortcut={getActionShortcutText("Toggle Sharp")}
+            onClick={() => performAction("Toggle Sharp")}
+          />
+          <ActionButton
+            label="♭"
+            tooltip="Flat"
+            shortcut={getActionShortcutText("Toggle Flat")}
+            onClick={() => performAction("Toggle Flat")}
+          />
+        </Flex>
+
+        <Box width="1px" height="24px" bg="gray.200" />
+
+        {/* Transpose */}
+        <Flex gap={1}>
+          <ActionButton
+            label="↑"
+            tooltip="Transpose octave up"
+            shortcut={getActionShortcutText("Transpose Octave Up")}
+            onClick={() => performAction("Transpose Octave Up")}
+          />
+          <ActionButton
+            label="↓"
+            tooltip="Transpose octave down"
+            shortcut={getActionShortcutText("Transpose Octave Down")}
+            onClick={() => performAction("Transpose Octave Down")}
+          />
+          <ActionButton
+            label="⌘↑"
+            tooltip="Transpose semitone up"
+            shortcut={getActionShortcutText("Transpose Semitone Up")}
+            onClick={() => performAction("Transpose Semitone Up")}
+          />
+          <ActionButton
+            label="⌘↓"
+            tooltip="Transpose semitone down"
+            shortcut={getActionShortcutText("Transpose Semitone Down")}
+            onClick={() => performAction("Transpose Semitone Down")}
+          />
+        </Flex>
+
+        <Box width="1px" height="24px" bg="gray.200" />
+
+        {/* Other editing actions */}
+        <Flex gap={1}>
+          <ActionButton
+            label="⌢"
+            tooltip="Toggle Tie"
+            shortcut={getActionShortcutText("Toggle Tie")}
+            onClick={() => performAction("Toggle Tie")}
+          />
+          <ActionButton
+            label="−"
+            tooltip="Extend Note"
+            shortcut={getActionShortcutText("Extend Note")}
+            onClick={() => performAction("Extend Note")}
+          />
+          <ActionButton
+            label='"'
+            tooltip="Insert Chord"
+            shortcut={getActionShortcutText("Insert Chord")}
+            onClick={() => performAction("Insert Chord")}
+          />
+        </Flex>
       </Flex>
     </Box>
+  );
+}
+
+type DurationButtonProps = {
+  icon: React.ReactNode;
+  duration: Duration;
+  currentDuration: Duration;
+  onClick: () => void;
+  shortcut: string | null;
+};
+
+function DurationButton(props: DurationButtonProps) {
+  const { icon, duration, currentDuration, onClick, shortcut } = props;
+  const isActive = currentDuration === duration;
+
+  return (
+    <Tooltip.Root positioning={{ placement: "top" }}>
+      <Tooltip.Trigger asChild>
+        <Box
+          as="button"
+          onClick={onClick}
+          bg={isActive ? "white" : "transparent"}
+          color={isActive ? "gray.900" : "gray.600"}
+          px={2}
+          py={1}
+          borderRadius="4px"
+          fontSize="md"
+          fontWeight="medium"
+          cursor="pointer"
+          userSelect="none"
+          transition="all 0.15s ease"
+          border={isActive ? "1px solid" : "1px solid transparent"}
+          borderColor={isActive ? "gray.300" : "transparent"}
+          boxShadow={isActive ? "0 1px 2px rgba(0, 0, 0, 0.05)" : "none"}
+          display="flex"
+          alignItems="center"
+          justifyContent="center"
+          _hover={{
+            bg: isActive ? "white" : "gray.100",
+            color: "gray.900",
+          }}
+          _active={{
+            transform: "scale(0.98)",
+          }}
+        >
+          {icon}
+        </Box>
+      </Tooltip.Trigger>
+      {shortcut && (
+        <Tooltip.Positioner>
+          <Tooltip.Content
+            bg="gray.800"
+            color="white"
+            px={2}
+            py={1}
+            borderRadius="md"
+            fontSize="xs"
+          >
+            {shortcut}
+          </Tooltip.Content>
+        </Tooltip.Positioner>
+      )}
+    </Tooltip.Root>
+  );
+}
+
+type ActionButtonProps = {
+  label: string;
+  tooltip: string;
+  shortcut?: string | null;
+  onClick: () => void;
+};
+
+function ActionButton(props: ActionButtonProps) {
+  const { label, tooltip, shortcut, onClick } = props;
+
+  return (
+    <Tooltip.Root positioning={{ placement: "top" }}>
+      <Tooltip.Trigger asChild>
+        <Box
+          as="button"
+          onClick={onClick}
+          bg="white"
+          color="gray.700"
+          px={2}
+          py={1}
+          borderRadius="4px"
+          fontSize="sm"
+          fontWeight="medium"
+          cursor="pointer"
+          userSelect="none"
+          transition="all 0.15s ease"
+          border="1px solid"
+          borderColor="gray.200"
+          minWidth="28px"
+          _hover={{
+            bg: "gray.50",
+            borderColor: "gray.300",
+            color: "gray.900",
+          }}
+          _active={{
+            transform: "scale(0.98)",
+            bg: "gray.100",
+          }}
+        >
+          {label}
+        </Box>
+      </Tooltip.Trigger>
+      <Tooltip.Positioner>
+        <Tooltip.Content
+          bg="gray.800"
+          color="white"
+          px={2}
+          py={1}
+          borderRadius="md"
+          fontSize="xs"
+        >
+          {tooltip}
+          {shortcut && ` (${shortcut})`}
+        </Tooltip.Content>
+      </Tooltip.Positioner>
+    </Tooltip.Root>
   );
 }
