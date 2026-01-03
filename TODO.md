@@ -1,4 +1,5 @@
 - [ ] Duration / dot buttons should reflect selection, let you edit it
+- [ ] Indicate selected note(s)
 
 - [ ] File context menu is flaky
 - [ ] Cursor should move to start of next measure where appropriate
