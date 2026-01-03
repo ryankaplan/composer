@@ -195,7 +195,6 @@ function CompositionRow(props: CompositionRowProps) {
           height="24px"
           borderRadius="4px"
           bg={menuOpen ? "gray.200" : "transparent"}
-          _hoverBg="gray.200"
           pointerEvents={isHovered || menuOpen ? "auto" : "none"}
         >
           <FaIcon name="ellipsis-h" style={{ fontSize: "14px" }} />

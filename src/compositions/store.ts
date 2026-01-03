@@ -67,7 +67,13 @@ export class CompositionStore {
       title: generateCuteTitle(),
       createdAt: now,
       updatedAt: now,
-      leadSheet: serializeDocumentToV1(doc),
+      leadSheet: {
+        timeSignature: { beatsPerBar: 4, beatUnit: 4 },
+        keySignature: "C",
+        explicitEndUnit: 64, // 4 measures in 4/4 time
+        events: [],
+        chords: { regions: [] },
+      },
     };
   }
 
