@@ -48,18 +48,19 @@ export function Sidebar(props: SidebarProps) {
           <MotionBox
             position="fixed"
             top="56px"
-            left="0"
+            left="-20px"
+            paddingLeft="20px"
             bottom="0"
-            width="280px"
+            width="300px"
             bg="white"
             borderRight="1px solid"
             borderColor="border"
             zIndex="999"
             overflowY="auto"
             boxShadow="lg"
-            initial={{ x: -280 }}
+            initial={{ x: -300 }}
             animate={{ x: 0 }}
-            exit={{ x: -280 }}
+            exit={{ x: -300 }}
             transition={{ type: "spring", damping: 25, stiffness: 300 }}
           >
             {/* Header with New button */}
