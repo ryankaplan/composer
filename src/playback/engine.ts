@@ -11,7 +11,7 @@ export class PlaybackEngine {
 
   private sampler: Tone.Sampler | null = null;
   private isInitialized = false;
-  private scheduledEvents: number[] = [];
+  private scheduledEventIds: number[] = [];
   private playbackStartTime: number | null = null;
   private startUnit: number = 0;
   private endUnit: number = 0;
@@ -78,7 +78,7 @@ export class PlaybackEngine {
     this.playheadUnit.set(startUnitParam);
     this.isPlaying.set(true);
 
-    // Schedule all events
+    // Schedule all events using Transport
     const now = Tone.now();
     this.playbackStartTime = now;
 
@@ -89,16 +89,16 @@ export class PlaybackEngine {
       if (event.kind === "note" && event.midi !== undefined) {
         const startTime = now + (event.startUnit - startUnitParam) * secPerUnit;
         const durationSeconds = event.durationUnits * secPerUnit;
-        this.scheduleNote(event.midi, startTime, durationSeconds);
+        this.scheduleNoteWithTransport(event.midi, startTime, durationSeconds);
       }
       // Rests don't need scheduling (they're just silence)
     }
 
-    // Schedule chord events (will be populated in Phase 4)
+    // Schedule chord events
     for (const event of ir.chordEvents) {
       const startTime = now + (event.startUnit - startUnitParam) * secPerUnit;
       const durationSeconds = event.durationUnits * secPerUnit;
-      this.scheduleChord(event.midiNotes, startTime, durationSeconds);
+      this.scheduleChordWithTransport(event.midiNotes, startTime, durationSeconds);
     }
 
     // Start playhead animation
@@ -106,11 +106,12 @@ export class PlaybackEngine {
 
     // Schedule automatic stop at the end
     const totalDuration = (ir.endUnit - startUnitParam) * secPerUnit;
-    setTimeout(() => {
+    const stopEventId = Tone.Transport.schedule(() => {
       if (this.isPlaying.get()) {
         this.stop();
       }
-    }, totalDuration * 1000);
+    }, now + totalDuration);
+    this.scheduledEventIds.push(stopEventId);
   }
 
   async start(
@@ -177,6 +178,32 @@ export class PlaybackEngine {
     this.sampler.triggerAttackRelease(notes, durationSeconds, startTime);
   }
 
+  private scheduleNoteWithTransport(midi: number, startTime: number, durationSeconds: number) {
+    if (!this.sampler) return;
+
+    const note = Tone.Frequency(midi, "midi").toNote();
+    const eventId = Tone.Transport.schedule(() => {
+      this.sampler!.triggerAttackRelease(note, durationSeconds);
+    }, startTime);
+    this.scheduledEventIds.push(eventId);
+  }
+
+  private scheduleChordWithTransport(
+    midiNotes: number[],
+    startTime: number,
+    durationSeconds: number
+  ) {
+    if (!this.sampler) return;
+
+    const notes = midiNotes.map((midi) =>
+      Tone.Frequency(midi, "midi").toNote()
+    );
+    const eventId = Tone.Transport.schedule(() => {
+      this.sampler!.triggerAttackRelease(notes, durationSeconds);
+    }, startTime);
+    this.scheduledEventIds.push(eventId);
+  }
+
   private startPlayheadAnimation() {
     const animate = () => {
       if (!this.isPlaying.get() || this.playbackStartTime === null) return;
@@ -211,8 +238,11 @@ export class PlaybackEngine {
   private clearScheduledEvents() {
     if (!this.sampler) return;
 
-    // Cancel all scheduled events
-    Tone.Transport.cancel();
+    // Cancel all scheduled events by ID
+    for (const eventId of this.scheduledEventIds) {
+      Tone.Transport.clear(eventId);
+    }
+    this.scheduledEventIds = [];
 
     // Release all active notes
     this.sampler.releaseAll();
