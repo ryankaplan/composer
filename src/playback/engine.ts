@@ -98,7 +98,11 @@ export class PlaybackEngine {
     for (const event of ir.chordEvents) {
       const startTime = now + (event.startUnit - startUnitParam) * secPerUnit;
       const durationSeconds = event.durationUnits * secPerUnit;
-      this.scheduleChordWithTransport(event.midiNotes, startTime, durationSeconds);
+      this.scheduleChordWithTransport(
+        event.midiNotes,
+        startTime,
+        durationSeconds
+      );
     }
 
     // Start playhead animation
@@ -106,12 +110,12 @@ export class PlaybackEngine {
 
     // Schedule automatic stop at the end
     const totalDuration = (ir.endUnit - startUnitParam) * secPerUnit;
-    const stopEventId = Tone.Transport.schedule(() => {
+    const stopTimeoutId = setTimeout(() => {
       if (this.isPlaying.get()) {
         this.stop();
       }
-    }, now + totalDuration);
-    this.scheduledEventIds.push(stopEventId);
+    }, totalDuration * 1000);
+    this.scheduledEventIds.push(stopTimeoutId);
   }
 
   async start(
@@ -178,14 +182,24 @@ export class PlaybackEngine {
     this.sampler.triggerAttackRelease(notes, durationSeconds, startTime);
   }
 
-  private scheduleNoteWithTransport(midi: number, startTime: number, durationSeconds: number) {
+  private scheduleNoteWithTransport(
+    midi: number,
+    startTime: number,
+    durationSeconds: number
+  ) {
     if (!this.sampler) return;
 
     const note = Tone.Frequency(midi, "midi").toNote();
-    const eventId = Tone.Transport.schedule(() => {
-      this.sampler!.triggerAttackRelease(note, durationSeconds);
-    }, startTime);
-    this.scheduledEventIds.push(eventId);
+    const now = Tone.now();
+    const delayMs = Math.max(0, (startTime - now) * 1000);
+
+    const timeoutId = setTimeout(() => {
+      if (this.sampler && this.isPlaying.get()) {
+        this.sampler.triggerAttackRelease(note, durationSeconds);
+      }
+    }, delayMs);
+
+    this.scheduledEventIds.push(timeoutId);
   }
 
   private scheduleChordWithTransport(
@@ -198,10 +212,16 @@ export class PlaybackEngine {
     const notes = midiNotes.map((midi) =>
       Tone.Frequency(midi, "midi").toNote()
     );
-    const eventId = Tone.Transport.schedule(() => {
-      this.sampler!.triggerAttackRelease(notes, durationSeconds);
-    }, startTime);
-    this.scheduledEventIds.push(eventId);
+    const now = Tone.now();
+    const delayMs = Math.max(0, (startTime - now) * 1000);
+
+    const timeoutId = setTimeout(() => {
+      if (this.sampler && this.isPlaying.get()) {
+        this.sampler.triggerAttackRelease(notes, durationSeconds);
+      }
+    }, delayMs);
+
+    this.scheduledEventIds.push(timeoutId);
   }
 
   private startPlayheadAnimation() {
@@ -238,9 +258,9 @@ export class PlaybackEngine {
   private clearScheduledEvents() {
     if (!this.sampler) return;
 
-    // Cancel all scheduled events by ID
-    for (const eventId of this.scheduledEventIds) {
-      Tone.Transport.clear(eventId);
+    // Cancel all scheduled timeouts
+    for (const timeoutId of this.scheduledEventIds) {
+      clearTimeout(timeoutId);
     }
     this.scheduledEventIds = [];
 
