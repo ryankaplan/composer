@@ -4,3 +4,6 @@ dist
 .env
 .pnpm-debug.log
 
+
+# Local Netlify folder
+.netlify
