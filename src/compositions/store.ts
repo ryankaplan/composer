@@ -4,7 +4,11 @@ import { Observable } from "../lib/observable";
 import { doc } from "../lead-sheet/Document";
 import { playbackEngine } from "../playback/engine";
 import { CompositionDB } from "./indexeddb";
-import { PersistedCompositionV1, generateCuteTitle } from "./schema";
+import {
+  PersistedCompositionV1,
+  PersistedLeadSheetV1,
+  generateCuteTitle,
+} from "./schema";
 import { serializeDocumentToV1, applyV1ToDocument } from "./serialize";
 import {
   durationToTicks,
@@ -154,6 +158,32 @@ export class CompositionStore {
 
     // Load it
     await this.loadComposition(duplicate.id);
+  }
+
+  /**
+   * Create a new composition from an imported lead sheet and switch to it.
+   */
+  async createCompositionFromImport(
+    title: string,
+    leadSheet: PersistedLeadSheetV1
+  ): Promise<void> {
+    const now = Date.now();
+    const newComposition: PersistedCompositionV1 = {
+      id: crypto.randomUUID(),
+      title,
+      createdAt: now,
+      updatedAt: now,
+      leadSheet,
+    };
+
+    await this.db.putComposition(newComposition);
+
+    // Add to list
+    const compositions = this.compositions.get();
+    this.compositions.set([newComposition, ...compositions]);
+
+    // Load it
+    await this.loadComposition(newComposition.id);
   }
 
   /**

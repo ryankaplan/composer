@@ -1,10 +1,11 @@
-import React, { useState } from "react";
+import React, { useState, useRef } from "react";
 import { Box, Flex } from "@chakra-ui/react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useObservable } from "../lib/observable";
 import { compositionStore } from "../compositions/store";
 import { PersistedCompositionV1 } from "../compositions/schema";
 import { FaIcon } from "./FaIcon";
+import { importMusicXMLToLeadSheet } from "../musicxml/import";
 
 type SidebarProps = {
   isOpen: boolean;
@@ -19,9 +20,35 @@ export function Sidebar(props: SidebarProps) {
   const currentCompositionId = useObservable(
     compositionStore.currentCompositionId
   );
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   function handleNewComposition() {
     compositionStore.createComposition();
+  }
+
+  function handleImportMusicXML() {
+    fileInputRef.current?.click();
+  }
+
+  async function handleFileSelected(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    try {
+      const text = await file.text();
+      const { title, leadSheet } = importMusicXMLToLeadSheet(text);
+      await compositionStore.createCompositionFromImport(title, leadSheet);
+    } catch (error) {
+      alert(
+        "Import failed: " +
+          (error instanceof Error ? error.message : String(error))
+      );
+    }
+
+    // Reset file input
+    if (fileInputRef.current) {
+      fileInputRef.current.value = "";
+    }
   }
 
   return (
@@ -63,7 +90,7 @@ export function Sidebar(props: SidebarProps) {
             exit={{ x: -300 }}
             transition={{ type: "spring", damping: 25, stiffness: 300 }}
           >
-            {/* Header with New button */}
+            {/* Header with New and Import buttons */}
             <Flex
               px={4}
               py={3}
@@ -73,33 +100,76 @@ export function Sidebar(props: SidebarProps) {
               alignItems="center"
             >
               <Box fontSize="sm" fontWeight="semibold" color="gray.700">
-                Compositions
+                All Songs
               </Box>
-              <button
-                onClick={handleNewComposition}
-                style={{
-                  background: "transparent",
-                  border: "1px solid #e2e8f0",
-                  borderRadius: "4px",
-                  padding: "4px 12px",
-                  fontSize: "13px",
-                  fontWeight: 500,
-                  color: "#4a5568",
-                  cursor: "pointer",
-                  transition: "all 0.15s ease",
-                }}
-                onMouseEnter={(e) => {
-                  e.currentTarget.style.backgroundColor = "#f7fafc";
-                  e.currentTarget.style.borderColor = "#cbd5e0";
-                }}
-                onMouseLeave={(e) => {
-                  e.currentTarget.style.backgroundColor = "transparent";
-                  e.currentTarget.style.borderColor = "#e2e8f0";
-                }}
-              >
-                + New
-              </button>
+              <Flex gap={2} alignItems="center">
+                <button
+                  onClick={handleImportMusicXML}
+                  style={{
+                    background: "transparent",
+                    border: "1px solid #e2e8f0",
+                    borderRadius: "4px",
+                    padding: "4px 10px",
+                    fontSize: "13px",
+                    fontWeight: 500,
+                    color: "#4a5568",
+                    cursor: "pointer",
+                    transition: "all 0.15s ease",
+                    display: "flex",
+                    alignItems: "center",
+                    gap: "6px",
+                  }}
+                  onMouseEnter={(e) => {
+                    e.currentTarget.style.backgroundColor = "#f7fafc";
+                    e.currentTarget.style.borderColor = "#cbd5e0";
+                  }}
+                  onMouseLeave={(e) => {
+                    e.currentTarget.style.backgroundColor = "transparent";
+                    e.currentTarget.style.borderColor = "#e2e8f0";
+                  }}
+                >
+                  <FaIcon name="file-import" style={{ fontSize: "12px" }} />
+                  Import
+                </button>
+                <button
+                  onClick={handleNewComposition}
+                  style={{
+                    background: "transparent",
+                    border: "1px solid #e2e8f0",
+                    borderRadius: "4px",
+                    padding: "4px 10px",
+                    fontSize: "13px",
+                    fontWeight: 500,
+                    color: "#4a5568",
+                    cursor: "pointer",
+                    transition: "all 0.15s ease",
+                    display: "flex",
+                    alignItems: "center",
+                    gap: "6px",
+                  }}
+                  onMouseEnter={(e) => {
+                    e.currentTarget.style.backgroundColor = "#f7fafc";
+                    e.currentTarget.style.borderColor = "#cbd5e0";
+                  }}
+                  onMouseLeave={(e) => {
+                    e.currentTarget.style.backgroundColor = "transparent";
+                    e.currentTarget.style.borderColor = "#e2e8f0";
+                  }}
+                >
+                  <FaIcon name="plus" style={{ fontSize: "12px" }} />
+                  New
+                </button>
+              </Flex>
             </Flex>
+
+            {/* Hidden file input for import */}
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept=".musicxml,.xml"
+              style={{ display: "none" }}
+              onChange={handleFileSelected}
+            />
 
             {/* Composition list */}
             <Box py={2}>

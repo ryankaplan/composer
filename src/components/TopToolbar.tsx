@@ -10,6 +10,7 @@ import { caretToTick } from "../playback/time";
 import { KEY_SIGNATURES, KeySignature } from "../lead-sheet/types";
 import { compositionStore } from "../compositions/store";
 import { FaIcon } from "./FaIcon";
+import { exportDocumentToMusicXML } from "../musicxml/export";
 
 type TopToolbarProps = {
   onToggleSidebar: () => void;
@@ -110,6 +111,24 @@ export function TopToolbar(props: TopToolbarProps) {
     setIsEditingTitle(false);
   }
 
+  function handleExportMusicXML() {
+    try {
+      const xml = exportDocumentToMusicXML(doc, currentTitle);
+      const blob = new Blob([xml], { type: "application/xml" });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `${currentTitle}.musicxml`;
+      a.click();
+      URL.revokeObjectURL(url);
+    } catch (error) {
+      alert(
+        "Export failed: " +
+          (error instanceof Error ? error.message : String(error))
+      );
+    }
+  }
+
   return (
     <Flex
       as="nav"
@@ -158,6 +177,51 @@ export function TopToolbar(props: TopToolbarProps) {
         >
           <FaIcon name="bars" style={{ fontSize: "16px" }} />
         </button>
+
+        {/* Export */}
+        <Tooltip.Root positioning={{ placement: "bottom" }}>
+          <Tooltip.Trigger asChild>
+            <button
+              onClick={handleExportMusicXML}
+              style={{
+                background: "transparent",
+                color: "#4a5568",
+                padding: "6px",
+                borderRadius: "4px",
+                fontSize: "14px",
+                cursor: "pointer",
+                userSelect: "none",
+                transition: "all 0.15s ease",
+                border: "none",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+              }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.backgroundColor = "rgba(0, 0, 0, 0.04)";
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.backgroundColor = "transparent";
+              }}
+            >
+              <FaIcon name="file-export" style={{ fontSize: "14px" }} />
+            </button>
+          </Tooltip.Trigger>
+          <Tooltip.Positioner>
+            <Tooltip.Content
+              bg="gray.800"
+              color="white"
+              px={2}
+              py={1}
+              borderRadius="md"
+              fontSize="xs"
+            >
+              Export MusicXML
+            </Tooltip.Content>
+          </Tooltip.Positioner>
+        </Tooltip.Root>
+
+        <Box width="1px" height="20px" bg="gray.200" mx={1} />
 
         {/* Time Signature */}
         <Flex alignItems="center" gap={1.5}>
