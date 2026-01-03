@@ -124,9 +124,9 @@ export function getBarCapacity(timeSignature: TimeSignature): number {
 }
 
 // Helper to generate unique IDs for events
-let nextEventId = 1;
+// Uses crypto.randomUUID() for globally unique, persistence-safe IDs
 export function generateEventId(): string {
-  return `event-${nextEventId++}`;
+  return crypto.randomUUID();
 }
 
 // Convert MIDI note number to pitch with preferred spelling

@@ -113,6 +113,19 @@ export class Document {
     }, [this.events, this.timeSignature, this.documentEndUnit]);
   }
 
+  // ==================== LOAD/REPLACE CONTENT ====================
+
+  /**
+   * Clear undo/redo history.
+   * Called when loading a composition from persistence.
+   */
+  clearHistory() {
+    this.undoStack = [];
+    this.redoStack = [];
+    this.canUndo.set(false);
+    this.canRedo.set(false);
+  }
+
   // ==================== UNDO/REDO ====================
 
   private createSnapshot(): DocumentSnapshot {

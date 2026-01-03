@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useState } from "react";
 import { Box, Flex, Input } from "@chakra-ui/react";
 import { Tooltip } from "@chakra-ui/react/tooltip";
 import { useObservable } from "../lib/observable";
@@ -8,8 +8,15 @@ import { playbackEngine } from "../playback/engine";
 import { buildPlaybackIR } from "../playback/build-ir";
 import { caretToUnit } from "../playback/time";
 import { KEY_SIGNATURES, KeySignature } from "../lead-sheet/types";
+import { compositionStore } from "../compositions/store";
+import { FaIcon } from "./FaIcon";
 
-export function TopToolbar() {
+type TopToolbarProps = {
+  onToggleSidebar: () => void;
+};
+
+export function TopToolbar(props: TopToolbarProps) {
+  const { onToggleSidebar } = props;
   const timeSignature = useObservable(doc.timeSignature);
   const keySignature = useObservable(doc.keySignature);
   const caret = useObservable(doc.caret);
@@ -17,6 +24,14 @@ export function TopToolbar() {
   const documentEndUnit = useObservable(doc.documentEndUnit);
   const isPlaying = useObservable(playbackEngine.isPlaying);
   const bpm = useObservable(playbackEngine.bpm);
+  const compositions = useObservable(compositionStore.compositions);
+  const currentCompositionId = useObservable(compositionStore.currentCompositionId);
+  
+  const [isEditingTitle, setIsEditingTitle] = useState(false);
+  const [editingTitle, setEditingTitle] = useState("");
+
+  const currentComposition = compositions.find(c => c.id === currentCompositionId);
+  const currentTitle = currentComposition?.title || "Untitled";
 
   function handleTimeSignatureChange(e: React.ChangeEvent<HTMLSelectElement>) {
     const beatsPerBar = parseInt(e.target.value) as 3 | 4;
@@ -55,6 +70,42 @@ export function TopToolbar() {
     }
   }
 
+  function handleToggleSidebar() {
+    onToggleSidebar();
+  }
+
+  function handleTitleClick() {
+    setIsEditingTitle(true);
+    setEditingTitle(currentTitle);
+  }
+
+  function handleTitleChange(e: React.ChangeEvent<HTMLInputElement>) {
+    setEditingTitle(e.target.value);
+  }
+
+  function handleTitleFocus(e: React.FocusEvent<HTMLInputElement>) {
+    e.target.select();
+  }
+
+  function handleTitleKeyDown(e: React.KeyboardEvent<HTMLInputElement>) {
+    if (e.key === "Enter") {
+      commitTitleEdit();
+    } else if (e.key === "Escape") {
+      setIsEditingTitle(false);
+    }
+  }
+
+  function handleTitleBlur() {
+    commitTitleEdit();
+  }
+
+  function commitTitleEdit() {
+    if (editingTitle.trim() && editingTitle !== currentTitle) {
+      compositionStore.updateCurrentTitle(editingTitle.trim());
+    }
+    setIsEditingTitle(false);
+  }
+
   return (
     <Flex
       as="nav"
@@ -75,8 +126,35 @@ export function TopToolbar() {
       backdropFilter="blur(8px)"
       height="56px"
     >
-      {/* Global Settings - Left */}
+      {/* Left side */}
       <Flex alignItems="center" gap={2}>
+        {/* Sidebar toggle */}
+        <button
+          onClick={handleToggleSidebar}
+          style={{
+            background: "transparent",
+            color: "#4a5568",
+            padding: "6px",
+            borderRadius: "4px",
+            fontSize: "16px",
+            cursor: "pointer",
+            userSelect: "none",
+            transition: "all 0.15s ease",
+            border: "none",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+          }}
+          onMouseEnter={(e) => {
+            e.currentTarget.style.backgroundColor = "rgba(0, 0, 0, 0.04)";
+          }}
+          onMouseLeave={(e) => {
+            e.currentTarget.style.backgroundColor = "transparent";
+          }}
+        >
+          <FaIcon name="bars" style={{ fontSize: "16px" }} />
+        </button>
+
         {/* Time Signature */}
         <Flex alignItems="center" gap={1.5}>
           <Box fontSize="xs" color="gray.600" fontWeight="medium">
@@ -141,6 +219,48 @@ export function TopToolbar() {
             ))}
           </select>
         </Flex>
+      </Flex>
+
+      {/* Spacer */}
+      <Box flex="1" />
+
+      {/* Center - Composition Title */}
+      <Flex alignItems="center" justifyContent="center">
+        {isEditingTitle ? (
+          <Input
+            autoFocus
+            value={editingTitle}
+            onChange={handleTitleChange}
+            onKeyDown={handleTitleKeyDown}
+            onBlur={handleTitleBlur}
+            onFocus={handleTitleFocus}
+            size="sm"
+            width="240px"
+            textAlign="center"
+            bg="white"
+            border="1px solid"
+            borderColor="gray.300"
+            fontSize="sm"
+            fontWeight="medium"
+          />
+        ) : (
+          <Box
+            onClick={handleTitleClick}
+            px={3}
+            py={1}
+            borderRadius="4px"
+            fontSize="sm"
+            fontWeight="medium"
+            color="gray.800"
+            cursor="pointer"
+            transition="all 0.15s ease"
+            _hover={{
+              bg: "gray.100",
+            }}
+          >
+            {currentTitle}
+          </Box>
+        )}
       </Flex>
 
       {/* Spacer */}
