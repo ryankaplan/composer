@@ -271,6 +271,34 @@ export class PlaybackEngine {
   getSecondsPerTick(): number {
     return secondsPerTick(this.bpm.get());
   }
+
+  async previewNote(midi: number, durationSeconds: number = 0.5) {
+    if (this.isPlaying.get()) return;
+
+    await Tone.start();
+    await this.initialize();
+
+    if (!this.sampler) return;
+
+    const note = Tone.Frequency(midi, "midi").toNote();
+    const now = Tone.now();
+    this.sampler.triggerAttackRelease(note, durationSeconds, now);
+  }
+
+  async previewChord(midiNotes: number[], durationSeconds: number = 1.0) {
+    if (this.isPlaying.get() || midiNotes.length === 0) return;
+
+    await Tone.start();
+    await this.initialize();
+
+    if (!this.sampler) return;
+
+    const notes = midiNotes.map((midi) =>
+      Tone.Frequency(midi, "midi").toNote()
+    );
+    const now = Tone.now();
+    this.sampler.triggerAttackRelease(notes, durationSeconds, now);
+  }
 }
 
 // Global singleton instance

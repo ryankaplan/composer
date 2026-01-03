@@ -8,6 +8,7 @@ import { interfaceState } from "../lead-sheet/InterfaceState";
 import { matchChords } from "../lead-sheet/chord-autocomplete";
 import { computeMeasures } from "../lead-sheet/measure";
 import { playbackEngine } from "../playback/engine";
+import { chordSymbolToMidi } from "../playback/chords-to-midi";
 import { FaIcon } from "./FaIcon";
 
 export function LeadSheetEditor() {
@@ -245,10 +246,13 @@ export function LeadSheetEditor() {
           autocompleteSuggestions[selectedSuggestionIndex];
         if (selectedSuggestion && editingChordId) {
           doc.updateChordRegionText(editingChordId, selectedSuggestion);
+          playbackEngine.previewChord(chordSymbolToMidi(selectedSuggestion));
         }
       } else if (editingChordId && editingChordText.trim()) {
         // No suggestions or invalid index, use the typed text
-        doc.updateChordRegionText(editingChordId, editingChordText.trim());
+        const finalText = editingChordText.trim();
+        doc.updateChordRegionText(editingChordId, finalText);
+        playbackEngine.previewChord(chordSymbolToMidi(finalText));
       } else if (
         editingChordId &&
         !editingChordText.trim() &&
@@ -324,6 +328,7 @@ export function LeadSheetEditor() {
   function handleSuggestionClick(suggestion: string) {
     if (editingChordId) {
       doc.updateChordRegionText(editingChordId, suggestion);
+      playbackEngine.previewChord(chordSymbolToMidi(suggestion));
     }
     setEditingChordId(null);
     setEditingChordPosition(null);
@@ -345,6 +350,7 @@ export function LeadSheetEditor() {
   // Handle measure insertion click
   function handleMeasureInsertClick(measureIndex: number, clickUnit: number) {
     doc.insertChordInMeasure(measureIndex, "C", clickUnit);
+    playbackEngine.previewChord(chordSymbolToMidi("C"));
   }
 
   // Handle chord region resize commit
@@ -371,6 +377,11 @@ export function LeadSheetEditor() {
 
     // Start the chord editing flow immediately
     handleChordClick(chordId, text, x, y, width, height);
+
+    // Preview the initial chord (if it has text)
+    if (text) {
+      playbackEngine.previewChord(chordSymbolToMidi(text));
+    }
   }
 
   // Handle measure append (extend document by 1 bar)

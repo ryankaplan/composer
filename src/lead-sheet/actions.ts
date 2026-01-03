@@ -228,7 +228,7 @@ const ACTIONS = [
     group: "Transpose",
     shortcuts: { keyCombos: [["shift", "arrowup"] as ShortcutKeys] },
     perform: () => {
-      doc.transposeSelectionOrLeftNote(12);
+      transposeSelectionOrLeftNoteAction(12);
     },
   },
   {
@@ -236,7 +236,7 @@ const ACTIONS = [
     group: "Transpose",
     shortcuts: { keyCombos: [["shift", "arrowdown"] as ShortcutKeys] },
     perform: () => {
-      doc.transposeSelectionOrLeftNote(-12);
+      transposeSelectionOrLeftNoteAction(-12);
     },
   },
   {
@@ -244,7 +244,7 @@ const ACTIONS = [
     group: "Transpose",
     shortcuts: { keyCombos: [["arrowup"] as ShortcutKeys] },
     perform: () => {
-      doc.transposeSelectionOrLeftNote(1);
+      transposeSelectionOrLeftNoteAction(1);
     },
   },
   {
@@ -252,7 +252,7 @@ const ACTIONS = [
     group: "Transpose",
     shortcuts: { keyCombos: [["arrowdown"] as ShortcutKeys] },
     perform: () => {
-      doc.transposeSelectionOrLeftNote(-1);
+      transposeSelectionOrLeftNoteAction(-1);
     },
   },
 
@@ -441,6 +441,9 @@ export function insertNoteAction(letter: PitchLetter) {
 
   doc.insertNote(pitch, duration);
 
+  // Preview the note
+  playbackEngine.previewNote(pitchToMidi(pitch));
+
   // Clear pending accidental (one-shot)
   interfaceState.clearPendingAccidental();
 }
@@ -456,6 +459,21 @@ export function toggleAccidentalAction(accidental: "#" | "b") {
   // If we have a selection or note to the left, apply to document
   if (selectedIndices.length > 0 || findNoteLeftOfCaret() !== null) {
     doc.toggleAccidentalSelectionOrLeftNote(accidental);
+
+    // Preview the affected note (preview the first selected, or the one to the left)
+    const indicesToPreview =
+      selectedIndices.length > 0
+        ? selectedIndices
+        : [findNoteLeftOfCaret()].filter((i): i is number => i !== null);
+
+    if (indicesToPreview.length > 0) {
+      const events = doc.events.get();
+      const firstIdx = indicesToPreview[0];
+      const event = events[firstIdx];
+      if (event && event.kind === "note") {
+        playbackEngine.previewNote(pitchToMidi(event.pitch));
+      }
+    }
   } else {
     // No selection and no note left of caret: set as pending accidental
     interfaceState.setPendingAccidental(accidental);
@@ -468,9 +486,46 @@ export function naturalizeAction() {
   // If we have a selection or note to the left, apply to document
   if (selectedIndices.length > 0 || findNoteLeftOfCaret() !== null) {
     doc.naturalizeSelectionOrLeftNote();
+
+    // Preview the affected note
+    const indicesToPreview =
+      selectedIndices.length > 0
+        ? selectedIndices
+        : [findNoteLeftOfCaret()].filter((i): i is number => i !== null);
+
+    if (indicesToPreview.length > 0) {
+      const events = doc.events.get();
+      const firstIdx = indicesToPreview[0];
+      const event = events[firstIdx];
+      if (event && event.kind === "note") {
+        playbackEngine.previewNote(pitchToMidi(event.pitch));
+      }
+    }
   } else {
     // No selection and no note left of caret: set as pending natural
     interfaceState.setPendingAccidental("natural");
+  }
+}
+
+export function transposeSelectionOrLeftNoteAction(semitones: number) {
+  const selectedIndices = getSelectedNoteIndices();
+
+  // Apply transposition
+  doc.transposeSelectionOrLeftNote(semitones);
+
+  // Preview the affected note
+  const indicesToPreview =
+    selectedIndices.length > 0
+      ? selectedIndices
+      : [findNoteLeftOfCaret()].filter((i): i is number => i !== null);
+
+  if (indicesToPreview.length > 0) {
+    const events = doc.events.get();
+    const firstIdx = indicesToPreview[0];
+    const event = events[firstIdx];
+    if (event && event.kind === "note") {
+      playbackEngine.previewNote(pitchToMidi(event.pitch));
+    }
   }
 }
 
