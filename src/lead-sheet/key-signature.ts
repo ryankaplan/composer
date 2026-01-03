@@ -161,3 +161,4 @@ export function getDiatonicAccidental(
 ): Accidental {
   return KEY_SIGNATURE_MAP[keySignature][letter];
 }
+
