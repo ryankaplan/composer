@@ -10,6 +10,12 @@ export type Duration = {
   dots: 0 | 1 | 2;
 };
 
+export const WHOLE_NOTE: Duration = { base: "1/1", dots: 0 };
+export const HALF_NOTE: Duration = { base: "1/2", dots: 0 };
+export const QUARTER_NOTE: Duration = { base: "1/4", dots: 0 };
+export const EIGHTH_NOTE: Duration = { base: "1/8", dots: 0 };
+export const SIXTEENTH_NOTE: Duration = { base: "1/16", dots: 0 };
+
 export const TICKS_PER_QUARTER = 96;
 
 export type TimeSignature = {
@@ -146,6 +152,7 @@ export function durationToTicks(duration: Duration): number {
 // Helper to get bar capacity in ticks
 export function getBarCapacity(timeSignature: TimeSignature): number {
   // beatsPerBar * ticks per beat.
+  //
   // Assuming beatUnit is 4 (quarter note), then ticks per beat = TICKS_PER_QUARTER.
   // If we want to support other beatUnits: TICKS_PER_QUARTER * (4 / beatUnit)
   const ticksPerBeat = TICKS_PER_QUARTER * (4 / timeSignature.beatUnit);

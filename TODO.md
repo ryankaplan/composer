@@ -4,6 +4,7 @@
 - [ ] Support for dotted notes
 - [ ] Filename flickers after changing
 - [ ] Play on insert / edit notes and chords
+- [ ] Duration / dot buttons should reflect selection
 
 --
 

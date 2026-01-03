@@ -3,9 +3,15 @@ import { Box, Flex } from "@chakra-ui/react";
 import { Tooltip } from "@chakra-ui/react/tooltip";
 import { useObservable } from "../lib/observable";
 import { interfaceState } from "../lead-sheet/InterfaceState";
-import { doc } from "../lead-sheet/Document";
 import { getAction, getActionShortcutText } from "../lead-sheet/actions";
-import { Duration } from "../lead-sheet/types";
+import {
+  Duration,
+  EIGHTH_NOTE,
+  HALF_NOTE,
+  QUARTER_NOTE,
+  SIXTEENTH_NOTE,
+  WHOLE_NOTE,
+} from "../lead-sheet/types";
 import {
   WholeNoteIcon,
   HalfNoteIcon,
@@ -58,7 +64,7 @@ export function BottomToolbar() {
           >
             <DurationButton
               icon={<WholeNoteIcon size={16} />}
-              duration={{ base: "1/1", dots: 0 }}
+              duration={WHOLE_NOTE}
               currentDuration={currentDuration}
               onClick={() =>
                 handleDurationChange({
@@ -70,7 +76,7 @@ export function BottomToolbar() {
             />
             <DurationButton
               icon={<HalfNoteIcon size={16} />}
-              duration={{ base: "1/2", dots: 0 }}
+              duration={HALF_NOTE}
               currentDuration={currentDuration}
               onClick={() =>
                 handleDurationChange({
@@ -82,7 +88,7 @@ export function BottomToolbar() {
             />
             <DurationButton
               icon={<QuarterNoteIcon size={16} />}
-              duration={{ base: "1/4", dots: 0 }}
+              duration={QUARTER_NOTE}
               currentDuration={currentDuration}
               onClick={() =>
                 handleDurationChange({
@@ -94,7 +100,7 @@ export function BottomToolbar() {
             />
             <DurationButton
               icon={<EighthNoteIcon size={16} />}
-              duration={{ base: "1/8", dots: 0 }}
+              duration={EIGHTH_NOTE}
               currentDuration={currentDuration}
               onClick={() =>
                 handleDurationChange({
@@ -106,7 +112,7 @@ export function BottomToolbar() {
             />
             <DurationButton
               icon={<SixteenthNoteIcon size={16} />}
-              duration={{ base: "1/16", dots: 0 }}
+              duration={SIXTEENTH_NOTE}
               currentDuration={currentDuration}
               onClick={() =>
                 handleDurationChange({

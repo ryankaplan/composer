@@ -6,7 +6,11 @@ import { playbackEngine } from "../playback/engine";
 import { CompositionDB } from "./indexeddb";
 import { PersistedCompositionV1, generateCuteTitle } from "./schema";
 import { serializeDocumentToV1, applyV1ToDocument } from "./serialize";
-import { TICKS_PER_QUARTER } from "../lead-sheet/types";
+import {
+  durationToTicks,
+  TICKS_PER_QUARTER,
+  WHOLE_NOTE,
+} from "../lead-sheet/types";
 
 export class CompositionStore {
   // Observable state
@@ -71,7 +75,7 @@ export class CompositionStore {
       leadSheet: {
         timeSignature: { beatsPerBar: 4, beatUnit: 4 },
         keySignature: "C",
-        explicitEndTick: TICKS_PER_QUARTER * 16, // 4 measures in 4/4 time
+        explicitEndTick: durationToTicks(WHOLE_NOTE) * 4, // 4 measures
         events: [],
         chords: { regions: [] },
       },
@@ -104,7 +108,7 @@ export class CompositionStore {
 
     // Save as last opened
     await this.db.putMeta({
-      schemaVersion: 1, // keeping version 1 but shape changed, DB version bumped
+      schemaVersion: 1,
       lastOpenedCompositionId: id,
     });
 
