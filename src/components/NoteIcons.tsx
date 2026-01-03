@@ -88,3 +88,59 @@ export function SixteenthNoteIcon({
     </svg>
   );
 }
+
+export function HalfNoteIcon({
+  size = 20,
+  color = "currentColor",
+}: NoteIconProps) {
+  return (
+    <svg
+      width="18"
+      height="18"
+      viewBox="0 0 18 18"
+      fill="none"
+      xmlns="http://www.w3.org/2000/svg"
+    >
+      <ellipse
+        cx="7.5"
+        cy="12.5"
+        rx="2.5"
+        ry="1.8"
+        stroke="black"
+        strokeWidth="1"
+        fill="white"
+        transform="rotate(-20 7.5 12.5)"
+      />
+      <path
+        d="M10.5 3.29047L10.5081 12.5541L9.5081 12.555L9.5 3.29134L10.5 3.29047Z"
+        fill="black"
+      />
+    </svg>
+  );
+}
+
+export function WholeNoteIcon({
+  size = 20,
+  color = "currentColor",
+}: NoteIconProps) {
+  return (
+    <svg
+      width="18"
+      height="18"
+      viewBox="0 0 18 18"
+      fill="none"
+      xmlns="http://www.w3.org/2000/svg"
+    >
+      <ellipse
+        cx="9"
+        cy="9"
+        rx="3"
+        ry="2.2"
+        stroke="black"
+        strokeWidth="1"
+        fill="white"
+        transform="rotate(-20 9 9)"
+      />
+    </svg>
+  );
+}

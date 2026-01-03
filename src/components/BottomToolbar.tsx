@@ -7,6 +7,8 @@ import { doc } from "../lead-sheet/Document";
 import { getAction, getActionShortcutText } from "../lead-sheet/actions";
 import { Duration } from "../lead-sheet/types";
 import {
+  WholeNoteIcon,
+  HalfNoteIcon,
   QuarterNoteIcon,
   EighthNoteIcon,
   SixteenthNoteIcon,
@@ -54,6 +56,20 @@ export function BottomToolbar() {
             border="1px solid"
             borderColor="gray.200"
           >
+            <DurationButton
+              icon={<WholeNoteIcon size={16} />}
+              duration="1/1"
+              currentDuration={currentDuration}
+              onClick={() => handleDurationChange("1/1")}
+              shortcut={getActionShortcutText("Set Duration Whole")}
+            />
+            <DurationButton
+              icon={<HalfNoteIcon size={16} />}
+              duration="1/2"
+              currentDuration={currentDuration}
+              onClick={() => handleDurationChange("1/2")}
+              shortcut={getActionShortcutText("Set Duration Half")}
+            />
             <DurationButton
               icon={<QuarterNoteIcon size={16} />}
               duration="1/4"

@@ -28,7 +28,7 @@ export type PersistedKeySignatureV1 =
   | "Gb"
   | "Cb";
 
-export type PersistedDurationV1 = "1/4" | "1/8" | "1/16";
+export type PersistedDurationV1 = "1/1" | "1/2" | "1/4" | "1/8" | "1/16";
 
 export type PersistedPitchV1 = {
   letter: "A" | "B" | "C" | "D" | "E" | "F" | "G";

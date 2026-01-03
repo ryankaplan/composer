@@ -18,8 +18,10 @@ export class InterfaceState {
   readonly chordInsertRequest = new Observable<ChordInsertRequest | null>(null);
 
   // Duration
-  setCurrentDurationFromKey(key: "4" | "8" | "6") {
-    const durationMap: Record<"4" | "8" | "6", Duration> = {
+  setCurrentDurationFromKey(key: "1" | "2" | "4" | "8" | "6") {
+    const durationMap: Record<"1" | "2" | "4" | "8" | "6", Duration> = {
+      "1": "1/1",
+      "2": "1/2",
       "4": "1/4",
       "8": "1/8",
       "6": "1/16",

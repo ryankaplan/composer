@@ -1,3 +1,7 @@
+- [ ] Cursor should move to start of next measure where appropriate
+- [ ] Join adjacent 8th notes?
+- [ ] Support for dotted notes
+
 Needed for MVP transcription
 
 - [x] Undo / redo

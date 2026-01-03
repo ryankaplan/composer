@@ -3,7 +3,7 @@
 // Time units: 1 unit = 1/16 note
 export type Unit = number;
 
-export type Duration = "1/4" | "1/8" | "1/16";
+export type Duration = "1/1" | "1/2" | "1/4" | "1/8" | "1/16";
 
 export type TimeSignature = {
   beatsPerBar: 3 | 4;
@@ -106,9 +106,13 @@ export type Measure = {
   status: MeasureStatus;
 };
 
-// Helper to convert duration to units (quarter = 4, eighth = 2, sixteenth = 1)
+// Helper to convert duration to units (whole = 16, half = 8, quarter = 4, eighth = 2, sixteenth = 1)
 export function durationToUnits(duration: Duration): number {
   switch (duration) {
+    case "1/1":
+      return 16;
+    case "1/2":
+      return 8;
     case "1/4":
       return 4;
     case "1/8":

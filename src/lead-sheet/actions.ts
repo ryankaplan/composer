@@ -113,6 +113,22 @@ const ACTIONS = [
 
   // Durations
   {
+    name: "Set Duration Whole",
+    group: "Duration",
+    shortcuts: { keyCombos: [["digit1"] as ShortcutKeys] },
+    perform: () => {
+      interfaceState.setCurrentDurationFromKey("1");
+    },
+  },
+  {
+    name: "Set Duration Half",
+    group: "Duration",
+    shortcuts: { keyCombos: [["digit2"] as ShortcutKeys] },
+    perform: () => {
+      interfaceState.setCurrentDurationFromKey("2");
+    },
+  },
+  {
     name: "Set Duration Quarter",
     group: "Duration",
     shortcuts: { keyCombos: [["digit4"] as ShortcutKeys] },

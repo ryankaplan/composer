@@ -36,8 +36,14 @@ export type RenderOptions = {
 };
 
 // Convert duration to VexFlow duration string
-function durationToVexFlow(duration: "1/4" | "1/8" | "1/16"): string {
+function durationToVexFlow(
+  duration: "1/1" | "1/2" | "1/4" | "1/8" | "1/16"
+): string {
   switch (duration) {
+    case "1/1":
+      return "w"; // whole
+    case "1/2":
+      return "h"; // half
     case "1/4":
       return "q"; // quarter
     case "1/8":
