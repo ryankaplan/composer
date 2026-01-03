@@ -24,12 +24,12 @@ export function LeadSheetEditor() {
   const caret = useObservable(doc.caret);
   const normalizedSelection = useObservable(doc.normalizedSelection);
   const chordTrack = useObservable(doc.chords);
-  const eventStartUnits = useObservable(doc.eventStartUnits);
-  const documentEndUnit = useObservable(doc.documentEndUnit);
+  const eventStartTicks = useObservable(doc.eventStartTicks);
+  const documentEndTick = useObservable(doc.documentEndTick);
   const selectedChordId = useObservable(interfaceState.selectedChordId);
   const chordInsertRequest = useObservable(interfaceState.chordInsertRequest);
   const isPlaying = useObservable(playbackEngine.isPlaying);
-  const playheadUnit = useObservable(playbackEngine.playheadUnit);
+  const playheadTick = useObservable(playbackEngine.playheadTick);
 
   const [containerSize, setContainerSize] = useState({
     width: 800,
@@ -150,7 +150,7 @@ export function LeadSheetEditor() {
       width: containerSize.width,
       height: renderHeight,
       showCaret: !isPlaying,
-      playheadUnit: isPlaying ? playheadUnit : undefined,
+      playheadTick: isPlaying ? playheadTick : undefined,
     });
 
     setLayout(newLayout);
@@ -164,10 +164,10 @@ export function LeadSheetEditor() {
     containerSize,
     shadowReady,
     chordTrack,
-    eventStartUnits,
-    documentEndUnit,
+    eventStartTicks,
+    documentEndTick,
     isPlaying,
-    playheadUnit,
+    playheadTick,
   ]);
 
   // Handle clicks on rendered notes/rests in the shadow DOM
@@ -384,14 +384,14 @@ export function LeadSheetEditor() {
       !isPlaying ||
       !layout ||
       !editorRef.current ||
-      playheadUnit === undefined
+      playheadTick === undefined
     ) {
       return;
     }
 
     // Find which system the playhead is in
-    const unitsPerBar = layout.unitsPerBar;
-    const measureIndex = Math.floor(playheadUnit / unitsPerBar);
+    const unitsPerBar = layout.ticksPerBar;
+    const measureIndex = Math.floor(playheadTick / unitsPerBar);
     const systemIndex = Math.floor(measureIndex / layout.measuresPerSystem);
 
     // Calculate the Y position of this system
@@ -425,7 +425,7 @@ export function LeadSheetEditor() {
         behavior: "smooth",
       });
     }
-  }, [isPlaying, playheadUnit, layout]);
+  }, [isPlaying, playheadTick, layout]);
 
   // Handle chord insert requests from keyboard actions
   useEffect(() => {
@@ -465,7 +465,7 @@ export function LeadSheetEditor() {
     }
 
     // Compute position using the same logic as ChordTrackOverlay
-    const unitsPerBar = layout.unitsPerBar;
+    const unitsPerBar = layout.ticksPerBar;
     const startBar = Math.floor(region.start / unitsPerBar);
     const endBar = Math.floor((region.end - 1) / unitsPerBar);
 

@@ -10,7 +10,7 @@ import { interfaceState } from "./InterfaceState";
 import { PitchLetter, Pitch, pitchToMidi, MelodyEvent } from "./types";
 import { playbackEngine } from "../playback/engine";
 import { buildPlaybackIR } from "../playback/build-ir";
-import { caretToUnit } from "../playback/time";
+import { caretToTick } from "../playback/time";
 import { getDiatonicAccidental } from "./key-signature";
 
 // Default octave for first note (C4 = MIDI 60)
@@ -150,6 +150,14 @@ const ACTIONS = [
     shortcuts: { keyCombos: [["digit6"] as ShortcutKeys] },
     perform: () => {
       interfaceState.setCurrentDurationFromKey("6");
+    },
+  },
+  {
+    name: "Toggle Dotted",
+    group: "Duration",
+    shortcuts: { keyCombos: [["period"] as ShortcutKeys] },
+    perform: () => {
+      interfaceState.toggleCurrentDurationDot();
     },
   },
 
@@ -475,11 +483,11 @@ export async function togglePlaybackAction() {
   } else {
     const events = doc.events.get();
     const caret = doc.caret.get();
-    const documentEndUnit = doc.documentEndUnit.get();
+    const documentEndTick = doc.documentEndTick.get();
     const chordTrack = doc.chords.get();
-    const caretUnit = caretToUnit(events, caret);
-    const ir = buildPlaybackIR(events, caretUnit, documentEndUnit, chordTrack);
-    await playbackEngine.playIR(ir, caretUnit);
+    const caretTick = caretToTick(events, caret);
+    const ir = buildPlaybackIR(events, caretTick, documentEndTick, chordTrack);
+    await playbackEngine.playIR(ir, caretTick);
   }
 }
 
@@ -502,13 +510,13 @@ export function insertChordInCurrentMeasureAction() {
     }
   }
 
-  // Convert caret to unit (time position)
-  const caretUnit = caretToUnit(events, caret);
+  // Convert caret to tick (time position)
+  const caretTick = caretToTick(events, caret);
 
   // Check if there's an existing chord at the caret position
   let existingChord = null;
   for (const region of chordTrack.regions) {
-    if (caretUnit >= region.start && caretUnit < region.end) {
+    if (caretTick >= region.start && caretTick < region.end) {
       existingChord = region;
       break;
     }

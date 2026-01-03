@@ -1,17 +1,16 @@
-import { MelodyEvent, Unit, durationToUnits } from "../lead-sheet/types";
+import { MelodyEvent, Tick, durationToTicks, TICKS_PER_QUARTER } from "../lead-sheet/types";
 
 /**
- * Convert BPM to seconds per unit.
- * 1 unit = 1/16 note
+ * Convert BPM to seconds per tick.
  * Quarter note duration = 60/bpm seconds
- * 1/16 note duration = (60/bpm) / 4 = 60/(bpm*4) seconds
+ * 1 tick = (60/bpm) / TICKS_PER_QUARTER seconds
  */
-export function secondsPerUnit(bpm: number): number {
-  return 60 / (bpm * 4);
+export function secondsPerTick(bpm: number): number {
+  return 60 / (bpm * TICKS_PER_QUARTER);
 }
 
 /**
- * Convert a caret position (insertion index between events) to unit time.
+ * Convert a caret position (insertion index between events) to tick time.
  * 
  * The caret sits "between" events. For example:
  * - caret=0 means before all events (time=0)
@@ -20,23 +19,23 @@ export function secondsPerUnit(bpm: number): number {
  * 
  * We compute the cumulative time by summing durations of all events before the caret.
  */
-export function caretToUnit(events: MelodyEvent[], caret: number): Unit {
-  let currentUnit: Unit = 0;
+export function caretToTick(events: MelodyEvent[], caret: number): Tick {
+  let currentTick: Tick = 0;
 
   for (let i = 0; i < caret && i < events.length; i++) {
     const event = events[i];
     if (event) {
-      currentUnit += durationToUnits(event.duration);
+      currentTick += durationToTicks(event.duration);
     }
   }
 
-  return currentUnit;
+  return currentTick;
 }
 
 /**
- * Convert unit time to seconds given a BPM.
+ * Convert tick time to seconds given a BPM.
  */
-export function unitsToSeconds(units: Unit, bpm: number): number {
-  return units * secondsPerUnit(bpm);
+export function ticksToSeconds(ticks: Tick, bpm: number): number {
+  return ticks * secondsPerTick(bpm);
 }
 

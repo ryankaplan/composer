@@ -1,20 +1,20 @@
 import * as Tone from "tone";
 import { Observable } from "../lib/observable";
 import { PlaybackIR } from "./build-ir";
-import { secondsPerUnit } from "./time";
+import { secondsPerTick } from "./time";
 
 // Playback engine state
 export class PlaybackEngine {
   readonly isPlaying = new Observable<boolean>(false);
   readonly bpm = new Observable<number>(120);
-  readonly playheadUnit = new Observable<number>(0);
+  readonly playheadTick = new Observable<number>(0);
 
   private sampler: Tone.Sampler | null = null;
   private isInitialized = false;
   private scheduledEventIds: number[] = [];
   private playbackStartTime: number | null = null;
-  private startUnit: number = 0;
-  private endUnit: number = 0;
+  private startTick: number = 0;
+  private endTick: number = 0;
   private animationFrameId: number | null = null;
 
   async initialize() {
@@ -63,7 +63,7 @@ export class PlaybackEngine {
     this.isInitialized = true;
   }
 
-  async playIR(ir: PlaybackIR, startUnitParam: number) {
+  async playIR(ir: PlaybackIR, startTickParam: number) {
     // Ensure audio context is started (browser requires user gesture)
     await Tone.start();
     await this.initialize();
@@ -73,22 +73,22 @@ export class PlaybackEngine {
     // Stop any existing playback
     this.stop();
 
-    this.startUnit = startUnitParam;
-    this.endUnit = ir.endUnit;
-    this.playheadUnit.set(startUnitParam);
+    this.startTick = startTickParam;
+    this.endTick = ir.endTick;
+    this.playheadTick.set(startTickParam);
     this.isPlaying.set(true);
 
     // Schedule all events using Transport
     const now = Tone.now();
     this.playbackStartTime = now;
 
-    const secPerUnit = secondsPerUnit(this.bpm.get());
+    const secPerTick = secondsPerTick(this.bpm.get());
 
     // Schedule melody events
     for (const event of ir.melodyEvents) {
       if (event.kind === "note" && event.midi !== undefined) {
-        const startTime = now + (event.startUnit - startUnitParam) * secPerUnit;
-        const durationSeconds = event.durationUnits * secPerUnit;
+        const startTime = now + (event.startTick - startTickParam) * secPerTick;
+        const durationSeconds = event.durationTicks * secPerTick;
         this.scheduleNoteWithTransport(event.midi, startTime, durationSeconds);
       }
       // Rests don't need scheduling (they're just silence)
@@ -96,8 +96,8 @@ export class PlaybackEngine {
 
     // Schedule chord events
     for (const event of ir.chordEvents) {
-      const startTime = now + (event.startUnit - startUnitParam) * secPerUnit;
-      const durationSeconds = event.durationUnits * secPerUnit;
+      const startTime = now + (event.startTick - startTickParam) * secPerTick;
+      const durationSeconds = event.durationTicks * secPerTick;
       this.scheduleChordWithTransport(
         event.midiNotes,
         startTime,
@@ -109,7 +109,7 @@ export class PlaybackEngine {
     this.startPlayheadAnimation();
 
     // Schedule automatic stop at the end
-    const totalDuration = (ir.endUnit - startUnitParam) * secPerUnit;
+    const totalDuration = (ir.endTick - startTickParam) * secPerTick;
     const stopTimeoutId = setTimeout(() => {
       if (this.isPlaying.get()) {
         this.stop();
@@ -119,7 +119,7 @@ export class PlaybackEngine {
   }
 
   async start(
-    startUnitParam: number,
+    startTickParam: number,
     scheduleCallback: (startTime: number) => void
   ) {
     // Ensure audio context is started (browser requires user gesture)
@@ -131,8 +131,8 @@ export class PlaybackEngine {
     // Stop any existing playback
     this.stop();
 
-    this.startUnit = startUnitParam;
-    this.playheadUnit.set(startUnitParam);
+    this.startTick = startTickParam;
+    this.playheadTick.set(startTickParam);
     this.isPlaying.set(true);
 
     // Schedule all events
@@ -159,7 +159,7 @@ export class PlaybackEngine {
     this.stopPlayheadAnimation();
     this.clearScheduledEvents();
     this.playbackStartTime = null;
-    this.startUnit = 0;
+    this.startTick = 0;
   }
 
   scheduleNote(midi: number, startTime: number, durationSeconds: number) {
@@ -230,14 +230,14 @@ export class PlaybackEngine {
 
       const currentTime = Tone.now();
       const elapsedSeconds = currentTime - this.playbackStartTime;
-      const secPerUnit = secondsPerUnit(this.bpm.get());
-      const elapsedUnits = elapsedSeconds / secPerUnit;
-      const currentUnit = this.startUnit + elapsedUnits;
+      const secPerTick = secondsPerTick(this.bpm.get());
+      const elapsedTicks = elapsedSeconds / secPerTick;
+      const currentTick = this.startTick + elapsedTicks;
 
-      this.playheadUnit.set(currentUnit);
+      this.playheadTick.set(currentTick);
 
       // Auto-stop when we reach the end
-      if (this.endUnit > 0 && currentUnit >= this.endUnit) {
+      if (this.endTick > 0 && currentTick >= this.endTick) {
         this.stop();
         return;
       }
@@ -268,8 +268,8 @@ export class PlaybackEngine {
     this.sampler.releaseAll();
   }
 
-  getSecondsPerUnit(): number {
-    return secondsPerUnit(this.bpm.get());
+  getSecondsPerTick(): number {
+    return secondsPerTick(this.bpm.get());
   }
 }
 

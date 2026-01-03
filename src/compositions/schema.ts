@@ -28,7 +28,10 @@ export type PersistedKeySignatureV1 =
   | "Gb"
   | "Cb";
 
-export type PersistedDurationV1 = "1/1" | "1/2" | "1/4" | "1/8" | "1/16";
+export type PersistedDurationV1 = {
+  base: "1/1" | "1/2" | "1/4" | "1/8" | "1/16";
+  dots: 0 | 1 | 2;
+};
 
 export type PersistedPitchV1 = {
   letter: "A" | "B" | "C" | "D" | "E" | "F" | "G";
@@ -52,8 +55,8 @@ export type PersistedMelodyEventV1 =
 
 export type PersistedChordRegionV1 = {
   id: string;
-  start: number; // Unit (1/16 note)
-  end: number; // Unit (1/16 note)
+  start: number; // Tick
+  end: number; // Tick
   text: string;
 };
 
@@ -64,7 +67,7 @@ export type PersistedChordTrackV1 = {
 export type PersistedLeadSheetV1 = {
   timeSignature: PersistedTimeSignatureV1;
   keySignature: PersistedKeySignatureV1;
-  explicitEndUnit: number; // Unit (1/16 note)
+  explicitEndTick: number; // Tick
   events: PersistedMelodyEventV1[];
   chords: PersistedChordTrackV1;
 };
@@ -116,8 +119,8 @@ export function validatePersistedCompositionV1(
   // Validate keySignature
   if (typeof ls.keySignature !== "string") return null;
 
-  // Validate explicitEndUnit
-  if (typeof ls.explicitEndUnit !== "number") return null;
+  // Validate explicitEndTick
+  if (typeof ls.explicitEndTick !== "number") return null;
 
   // Validate events array
   if (!Array.isArray(ls.events)) return null;

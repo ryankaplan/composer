@@ -7,6 +7,7 @@ import {
   Accidental as VexAccidental,
   BarlineType,
   StaveTie,
+  Dot,
 } from "vexflow/bravura";
 import {
   MelodyEvent,
@@ -16,9 +17,10 @@ import {
   Accidental,
   pitchToMidi,
   ChordTrack,
-  Unit,
+  Tick,
   getBarCapacity,
-  durationToUnits,
+  durationToTicks,
+  NoteValue,
 } from "./types";
 
 export type RenderOptions = {
@@ -32,14 +34,12 @@ export type RenderOptions = {
   width: number;
   height: number;
   showCaret: boolean;
-  playheadUnit?: Unit;
+  playheadTick?: Tick;
 };
 
-// Convert duration to VexFlow duration string
-function durationToVexFlow(
-  duration: "1/1" | "1/2" | "1/4" | "1/8" | "1/16"
-): string {
-  switch (duration) {
+// Convert duration base to VexFlow duration string
+function durationToVexFlow(base: NoteValue): string {
+  switch (base) {
     case "1/1":
       return "w"; // whole
     case "1/2":
@@ -118,11 +118,11 @@ export function renderLeadSheet(options: RenderOptions): LeadSheetLayout {
     caret,
     selection,
     showCaret,
-    options.playheadUnit
+    options.playheadTick
   );
 
   // Return layout data for React overlay
-  const unitsPerBar = getBarCapacity(timeSignature);
+  const ticksPerBar = getBarCapacity(timeSignature);
   const availableWidth = Math.max(0, width - SYSTEM_PADDING_X * 2);
   const measuresPerSystem = Math.max(
     1,
@@ -130,7 +130,7 @@ export function renderLeadSheet(options: RenderOptions): LeadSheetLayout {
   );
   return {
     measureMetadata,
-    unitsPerBar,
+    ticksPerBar,
     measuresPerSystem,
     measureWidth: MEASURE_WIDTH,
     systemPaddingX: SYSTEM_PADDING_X,
@@ -163,7 +163,7 @@ export type MeasureMetadata = {
 // Layout data returned by renderLeadSheet for React overlay
 export type LeadSheetLayout = {
   measureMetadata: MeasureMetadata[];
-  unitsPerBar: Unit;
+  ticksPerBar: Tick;
   measuresPerSystem: number;
   measureWidth: number;
   systemPaddingX: number;
@@ -184,7 +184,7 @@ function renderMeasures(
   caret: number,
   selection: { start: number; end: number } | null,
   showCaret: boolean,
-  playheadUnit?: Unit
+  playheadTick?: Tick
 ): MeasureMetadata[] {
   // Map global event index to its bounding box after rendering
   const eventBBoxes = new Map<number, NoteBBox>();
@@ -299,7 +299,7 @@ function renderMeasures(
         const globalIdx = measure.startEventIdx + localIdx;
 
         if (event.kind === "note") {
-          const vexDuration = durationToVexFlow(event.duration);
+          const vexDuration = durationToVexFlow(event.duration.base);
           const vexKey = pitchToVexFlowKey(
             event.pitch.letter,
             event.pitch.accidental,
@@ -312,16 +312,27 @@ function renderMeasures(
             clef: "treble",
           });
 
+          // Add dots if any
+          for (let d = 0; d < event.duration.dots; d++) {
+            Dot.buildAndAttach([note], { all: true });
+          }
+
           vexNotes.push(note);
           noteToEventIdx.set(note, globalIdx);
           eventToStaveNote.set(globalIdx, note);
         } else if (event.kind === "rest") {
-          const vexDuration = durationToVexFlow(event.duration);
+          const vexDuration = durationToVexFlow(event.duration.base);
           const rest = new StaveNote({
             keys: ["b/4"],
             duration: `${vexDuration}r`, // 'r' suffix for rest
             clef: "treble",
           });
+
+          // Add dots if any
+          for (let d = 0; d < event.duration.dots; d++) {
+            Dot.buildAndAttach([rest], { all: true });
+          }
+
           vexNotes.push(rest);
           noteToEventIdx.set(rest, globalIdx);
           eventToStaveNote.set(globalIdx, rest);
@@ -426,7 +437,7 @@ function renderMeasures(
       eventToSystemIdx,
       eventToStaff,
       firstSystemStaff,
-      playheadUnit,
+      playheadTick,
       events,
       measures,
       measureMetadata,
@@ -516,7 +527,7 @@ function renderOverlays(
   eventToSystemIdx: Map<number, number>,
   eventToStaff: Map<number, { top: number; bottom: number }>,
   firstSystemStaff: { top: number; bottom: number; noteStartX: number } | null,
-  playheadUnit?: Unit,
+  playheadTick?: Tick,
   events?: MelodyEvent[],
   measures?: Measure[],
   measureMetadata?: MeasureMetadata[],
@@ -686,7 +697,7 @@ function renderOverlays(
 
   // 3) Render playhead (if active)
   if (
-    playheadUnit !== undefined &&
+    playheadTick !== undefined &&
     events &&
     measures &&
     measures.length > 0 &&
@@ -694,8 +705,8 @@ function renderOverlays(
     timeSignature
   ) {
     // Find which measure the playhead is in
-    const unitsPerBar = getBarCapacity(timeSignature);
-    const measureIndex = Math.floor(playheadUnit / unitsPerBar);
+    const ticksPerBar = getBarCapacity(timeSignature);
+    const measureIndex = Math.floor(playheadTick / ticksPerBar);
 
     // Find the measure metadata
     const measureMeta = measureMetadata.find(
@@ -704,9 +715,9 @@ function renderOverlays(
 
     if (measureMeta) {
       // Calculate position within the measure
-      const measureStartUnit = measureIndex * unitsPerBar;
-      const unitWithinMeasure = playheadUnit - measureStartUnit;
-      const fractionWithinMeasure = unitWithinMeasure / unitsPerBar;
+      const measureStartTick = measureIndex * ticksPerBar;
+      const tickWithinMeasure = playheadTick - measureStartTick;
+      const fractionWithinMeasure = tickWithinMeasure / ticksPerBar;
 
       // Interpolate X position within the measure's note area
       const noteAreaWidth =

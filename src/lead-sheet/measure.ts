@@ -3,10 +3,10 @@ import {
   TimeSignature,
   Measure,
   MeasureStatus,
-  durationToUnits,
+  durationToTicks,
   getBarCapacity,
   pitchToMidi,
-  Unit,
+  Tick,
 } from "./types";
 
 // Compute measures from a flat event list and time signature
@@ -15,63 +15,63 @@ export function computeMeasures(
   timeSignature: TimeSignature
 ): Measure[] {
   const measures: Measure[] = [];
-  const capacityUnits = getBarCapacity(timeSignature);
+  const capacityTicks = getBarCapacity(timeSignature);
 
   let currentMeasureStartIdx = 0;
-  let currentFilledUnits = 0;
+  let currentFilledTicks = 0;
 
   for (let i = 0; i < events.length; i++) {
     const event = events[i]!;
 
-    const eventUnits = durationToUnits(event.duration);
+    const eventTicks = durationToTicks(event.duration);
 
     // Check if adding this event would exceed capacity
-    if (currentFilledUnits + eventUnits > capacityUnits) {
+    if (currentFilledTicks + eventTicks > capacityTicks) {
       // Close current measure (it's overfull)
       measures.push({
         index: measures.length,
         startEventIdx: currentMeasureStartIdx,
         endEventIdx: i,
-        filledUnits: currentFilledUnits,
-        capacityUnits,
+        filledTicks: currentFilledTicks,
+        capacityTicks,
         status:
-          currentFilledUnits < capacityUnits
+          currentFilledTicks < capacityTicks
             ? "under"
-            : currentFilledUnits > capacityUnits
+            : currentFilledTicks > capacityTicks
             ? "over"
             : "ok",
       });
 
       // Start new measure with this event
       currentMeasureStartIdx = i;
-      currentFilledUnits = eventUnits;
+      currentFilledTicks = eventTicks;
     } else {
-      currentFilledUnits += eventUnits;
+      currentFilledTicks += eventTicks;
 
       // If we've exactly filled the measure, close it and start a new one
-      if (currentFilledUnits === capacityUnits) {
+      if (currentFilledTicks === capacityTicks) {
         measures.push({
           index: measures.length,
           startEventIdx: currentMeasureStartIdx,
           endEventIdx: i + 1,
-          filledUnits: currentFilledUnits,
-          capacityUnits,
+          filledTicks: currentFilledTicks,
+          capacityTicks,
           status: "ok",
         });
 
         // Start new measure
         currentMeasureStartIdx = i + 1;
-        currentFilledUnits = 0;
+        currentFilledTicks = 0;
       }
     }
   }
 
   // Close the final measure if there are any remaining events
-  if (currentMeasureStartIdx < events.length || currentFilledUnits > 0) {
+  if (currentMeasureStartIdx < events.length || currentFilledTicks > 0) {
     const status: MeasureStatus =
-      currentFilledUnits === capacityUnits
+      currentFilledTicks === capacityTicks
         ? "ok"
-        : currentFilledUnits < capacityUnits
+        : currentFilledTicks < capacityTicks
         ? "under"
         : "over";
 
@@ -79,8 +79,8 @@ export function computeMeasures(
       index: measures.length,
       startEventIdx: currentMeasureStartIdx,
       endEventIdx: events.length,
-      filledUnits: currentFilledUnits,
-      capacityUnits,
+      filledTicks: currentFilledTicks,
+      capacityTicks,
       status,
     });
   }
@@ -91,8 +91,8 @@ export function computeMeasures(
       index: 0,
       startEventIdx: 0,
       endEventIdx: 0,
-      filledUnits: 0,
-      capacityUnits,
+      filledTicks: 0,
+      capacityTicks,
       status: "under",
     });
   }
@@ -127,43 +127,43 @@ export function findPrevNoteMidi(
   return null;
 }
 
-// Compute the start time (in units) for each melody event
-// Returns an array where eventStartUnits[i] is the start time of events[i]
-export function computeEventStartUnits(events: MelodyEvent[]): Unit[] {
-  const startUnits: Unit[] = [];
-  let currentUnit: Unit = 0;
+// Compute the start time (in ticks) for each melody event
+// Returns an array where eventStartTicks[i] is the start time of events[i]
+export function computeEventStartTicks(events: MelodyEvent[]): Tick[] {
+  const startTicks: Tick[] = [];
+  let currentTick: Tick = 0;
 
   for (const event of events) {
-    startUnits.push(currentUnit);
+    startTicks.push(currentTick);
 
-    const eventUnits = durationToUnits(event.duration);
-    currentUnit += eventUnits;
+    const eventTicks = durationToTicks(event.duration);
+    currentTick += eventTicks;
   }
 
-  return startUnits;
+  return startTicks;
 }
 
-// Compute the end time (in units) of the melody track
-export function computeMelodyEndUnit(events: MelodyEvent[]): Unit {
-  let currentUnit: Unit = 0;
+// Compute the end time (in ticks) of the melody track
+export function computeMelodyEndTick(events: MelodyEvent[]): Tick {
+  let currentTick: Tick = 0;
 
   for (const event of events) {
-    const eventUnits = durationToUnits(event.duration);
-    currentUnit += eventUnits;
+    const eventTicks = durationToTicks(event.duration);
+    currentTick += eventTicks;
   }
 
-  return currentUnit;
+  return currentTick;
 }
 
-// Pad measures with empty measures until they cover the target end unit
-export function padMeasuresToEndUnit(
+// Pad measures with empty measures until they cover the target end tick
+export function padMeasuresToEndTick(
   melodyMeasures: Measure[],
-  targetEndUnit: Unit,
+  targetEndTick: Tick,
   timeSignature: TimeSignature,
   eventCount: number
 ): Measure[] {
-  const capacityUnits = getBarCapacity(timeSignature);
-  const targetMeasureCount = Math.ceil(targetEndUnit / capacityUnits);
+  const capacityTicks = getBarCapacity(timeSignature);
+  const targetMeasureCount = Math.ceil(targetEndTick / capacityTicks);
 
   if (melodyMeasures.length >= targetMeasureCount) {
     return melodyMeasures;
@@ -176,8 +176,8 @@ export function padMeasuresToEndUnit(
       index: i,
       startEventIdx: eventCount,
       endEventIdx: eventCount,
-      filledUnits: 0,
-      capacityUnits,
+      filledTicks: 0,
+      capacityTicks,
       status: "under",
     });
   }

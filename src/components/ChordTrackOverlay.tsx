@@ -5,7 +5,7 @@ import {
   TimeSignature,
   KeySignature,
   ChordRegion,
-  Unit,
+  Tick,
 } from "../lead-sheet/types";
 import { LeadSheetLayout, MeasureMetadata } from "../lead-sheet/vexflow-render";
 import {
@@ -29,11 +29,11 @@ type ChordTrackOverlayProps = {
     height: number
   ) => void;
   onBackgroundClick: () => void;
-  onMeasureInsertClick: (measureIndex: number, clickUnit: Unit) => void;
-  onResizeCommit: (regionId: string, newStart: Unit, newEnd: Unit) => void;
+  onMeasureInsertClick: (measureIndex: number, clickTick: Tick) => void;
+  onResizeCommit: (regionId: string, newStart: Tick, newEnd: Tick) => void;
   onChordAppend: (
-    start: Unit,
-    end: Unit,
+    start: Tick,
+    end: Tick,
     text: string,
     x: number,
     y: number,
@@ -45,10 +45,10 @@ type ChordTrackOverlayProps = {
 type DragState = {
   regionId: string;
   handle: "left" | "right";
-  originalStart: Unit;
-  originalEnd: Unit;
-  previewStart: Unit;
-  previewEnd: Unit;
+  originalStart: Tick;
+  originalEnd: Tick;
+  previewStart: Tick;
+  previewEnd: Tick;
 };
 
 // A chord segment represents a visual box for a chord region on a specific system
@@ -64,8 +64,8 @@ type ChordSegment = {
 // A gap box represents a clickable insertion area for a gap
 type GapBox = {
   measureIndex: number;
-  gapStart: Unit;
-  gapEnd: Unit;
+  gapStart: Tick;
+  gapEnd: Tick;
   x: number;
   y: number;
   width: number;
@@ -74,8 +74,8 @@ type GapBox = {
 
 // An append box represents a clickable area to append a chord after the last chord
 type AppendBox = {
-  start: Unit;
-  end: Unit;
+  start: Tick;
+  end: Tick;
   text: string;
   x: number;
   y: number;
@@ -103,7 +103,7 @@ export function ChordTrackOverlay({
   const segments = computeChordSegments(
     chordTrack,
     layout.measureMetadata,
-    layout.unitsPerBar
+    layout.ticksPerBar
   );
 
   // Compute gap boxes for insertion
@@ -111,7 +111,7 @@ export function ChordTrackOverlay({
     chordTrack,
     timeSignature,
     layout.measureMetadata,
-    layout.unitsPerBar
+    layout.ticksPerBar
   );
 
   // Compute chord append boxes (right of last chord)
@@ -123,7 +123,7 @@ export function ChordTrackOverlay({
         segments,
         dragState,
         layout.measureMetadata,
-        layout.unitsPerBar
+        layout.ticksPerBar
       )
     : segments;
 
@@ -139,26 +139,26 @@ export function ChordTrackOverlay({
 
       const mouseX = e.clientX - rect.left;
 
-      // Convert mouse position to Units
-      const unit = pixelToUnit(
+      // Convert mouse position to Ticks
+      const tick = pixelToTick(
         mouseX,
         layout.measureMetadata,
-        layout.unitsPerBar
+        layout.ticksPerBar
       );
-      if (unit === null) return;
+      if (tick === null) return;
 
-      // Snap to beat boundaries (4 units per beat in 4/4)
-      const beatsPerUnit = 4;
-      const snappedUnit = Math.round(unit / beatsPerUnit) * beatsPerUnit;
+      // Snap to eighth note boundaries (48 ticks in 96ppq)
+      const snapTicks = 48;
+      const snappedTick = Math.round(tick / snapTicks) * snapTicks;
 
       // Compute new start/end based on which handle is dragging
       let newStart = dragState.originalStart;
       let newEnd = dragState.originalEnd;
 
       if (dragState.handle === "left") {
-        newStart = snappedUnit;
+        newStart = snappedTick;
       } else {
-        newEnd = snappedUnit;
+        newEnd = snappedTick;
       }
 
       // Clamp to neighbors
@@ -253,8 +253,8 @@ export function ChordTrackOverlay({
               isHovered={hoveredGapKey === gapKey}
               onHover={() => setHoveredGapKey(gapKey)}
               onLeave={() => setHoveredGapKey(null)}
-              onClick={(clickUnit) =>
-                onMeasureInsertClick(gapBox.measureIndex, clickUnit)
+              onClick={(clickTick) =>
+                onMeasureInsertClick(gapBox.measureIndex, clickTick)
               }
               overlayRef={overlayRef}
               layout={layout}
@@ -308,7 +308,7 @@ type GapInsertionBoxProps = {
   isHovered: boolean;
   onHover: () => void;
   onLeave: () => void;
-  onClick: (clickUnit: Unit) => void;
+  onClick: (clickTick: Tick) => void;
   overlayRef: React.RefObject<HTMLDivElement | null>;
   layout: LeadSheetLayout;
 };
@@ -325,19 +325,19 @@ function GapInsertionBox({
   function handleClick(e: React.MouseEvent) {
     e.stopPropagation();
 
-    // Convert click position to Unit
+    // Convert click position to Tick
     const rect = overlayRef.current?.getBoundingClientRect();
     if (!rect) return;
 
     const mouseX = e.clientX - rect.left;
-    const clickUnit = pixelToUnit(
+    const clickTick = pixelToTick(
       mouseX,
       layout.measureMetadata,
-      layout.unitsPerBar
+      layout.ticksPerBar
     );
 
-    if (clickUnit !== null) {
-      onClick(clickUnit);
+    if (clickTick !== null) {
+      onClick(clickTick);
     }
   }
 
@@ -531,13 +531,13 @@ function ChordBox({
 function computeChordSegments(
   chordTrack: ChordTrack,
   measureMetadata: MeasureMetadata[],
-  unitsPerBar: number
+  ticksPerBar: number
 ): ChordSegment[] {
   const segments: ChordSegment[] = [];
 
   for (const region of chordTrack.regions) {
-    const startBar = Math.floor(region.start / unitsPerBar);
-    const endBar = Math.floor((region.end - 1) / unitsPerBar);
+    const startBar = Math.floor(region.start / ticksPerBar);
+    const endBar = Math.floor((region.end - 1) / ticksPerBar);
 
     // Find all measures this region spans
     const spannedMeasures = measureMetadata.filter(
@@ -559,17 +559,17 @@ function computeChordSegments(
       const lastMeasure = measuresInSystem[measuresInSystem.length - 1]!;
 
       // Calculate x position within first measure
-      const startOffsetInBar = region.start % unitsPerBar;
-      const startFraction = startOffsetInBar / unitsPerBar;
+      const startOffsetInBar = region.start % ticksPerBar;
+      const startFraction = startOffsetInBar / ticksPerBar;
       const firstMeasureNoteWidth =
         firstMeasure.width - (firstMeasure.noteStartX - firstMeasure.x);
       const startX =
         firstMeasure.noteStartX + startFraction * firstMeasureNoteWidth;
 
       // Calculate x position within last measure
-      const endOffsetInBar = region.end % unitsPerBar;
+      const endOffsetInBar = region.end % ticksPerBar;
       const endFraction =
-        endOffsetInBar === 0 ? 1 : endOffsetInBar / unitsPerBar;
+        endOffsetInBar === 0 ? 1 : endOffsetInBar / ticksPerBar;
       const lastMeasureNoteWidth =
         lastMeasure.width - (lastMeasure.noteStartX - lastMeasure.x);
       const endX = lastMeasure.noteStartX + endFraction * lastMeasureNoteWidth;
@@ -595,21 +595,21 @@ function computeChordSegments(
   return segments;
 }
 
-// Convert pixel X position to Unit (time position)
-function pixelToUnit(
+// Convert pixel X position to Tick (time position)
+function pixelToTick(
   pixelX: number,
   measureMetadata: MeasureMetadata[],
-  unitsPerBar: number
-): Unit | null {
+  ticksPerBar: number
+): Tick | null {
   // Find the measure containing this pixel position
   for (const measure of measureMetadata) {
     if (pixelX >= measure.x && pixelX <= measure.x + measure.width) {
       // Position within the measure
-      const measureStartUnit = measure.measureIndex * unitsPerBar;
+      const measureStartTick = measure.measureIndex * ticksPerBar;
       const noteWidth = measure.width - (measure.noteStartX - measure.x);
       const xInMeasure = pixelX - measure.noteStartX;
       const fraction = Math.max(0, Math.min(1, xInMeasure / noteWidth));
-      return measureStartUnit + fraction * unitsPerBar;
+      return measureStartTick + fraction * ticksPerBar;
     }
   }
 
@@ -621,7 +621,7 @@ function applyDragPreviewToSegments(
   segments: ChordSegment[],
   dragState: DragState,
   measureMetadata: MeasureMetadata[],
-  unitsPerBar: number
+  ticksPerBar: number
 ): ChordSegment[] {
   const result: ChordSegment[] = [];
 
@@ -638,7 +638,7 @@ function applyDragPreviewToSegments(
       const previewSegments = computeChordSegments(
         { regions: [previewRegion] },
         measureMetadata,
-        unitsPerBar
+        ticksPerBar
       );
 
       for (const previewSeg of previewSegments) {
@@ -657,27 +657,27 @@ function computeGapBoxes(
   chordTrack: ChordTrack,
   timeSignature: TimeSignature,
   measureMetadata: MeasureMetadata[],
-  unitsPerBar: number
+  ticksPerBar: number
 ): GapBox[] {
   const gapBoxes: GapBox[] = [];
 
   for (let i = 0; i < measureMetadata.length; i++) {
     const measure = measureMetadata[i]!;
-    const barStartUnit = measure.measureIndex * unitsPerBar;
-    const barEndUnit = (measure.measureIndex + 1) * unitsPerBar;
+    const barStartTick = measure.measureIndex * ticksPerBar;
+    const barEndTick = (measure.measureIndex + 1) * ticksPerBar;
 
-    const gaps = computeInsertionGaps(chordTrack, barStartUnit, barEndUnit);
+    const gaps = computeInsertionGaps(chordTrack, barStartTick, barEndTick);
 
     for (let j = 0; j < gaps.length; j++) {
       const gap = gaps[j]!;
 
-      // Convert gap units to pixel coordinates within this measure
-      const startOffsetInBar = gap.start % unitsPerBar;
-      const endOffsetInBar = gap.end % unitsPerBar;
+      // Convert gap ticks to pixel coordinates within this measure
+      const startOffsetInBar = gap.start % ticksPerBar;
+      const endOffsetInBar = gap.end % ticksPerBar;
 
-      const startFraction = startOffsetInBar / unitsPerBar;
+      const startFraction = startOffsetInBar / ticksPerBar;
       const endFraction =
-        endOffsetInBar === 0 ? 1 : endOffsetInBar / unitsPerBar;
+        endOffsetInBar === 0 ? 1 : endOffsetInBar / ticksPerBar;
 
       const noteWidth = measure.width - (measure.noteStartX - measure.x);
       const startX = measure.noteStartX + startFraction * noteWidth;
@@ -722,9 +722,9 @@ function computeChordAppendBoxes(
 
   if (layout.measureMetadata.length === 0) return [];
 
-  const unitsPerBar = layout.unitsPerBar;
-  const startBar = Math.floor(nextStart / unitsPerBar);
-  const endBar = Math.floor((nextEnd - 1) / unitsPerBar);
+  const ticksPerBar = layout.ticksPerBar;
+  const startBar = Math.floor(nextStart / ticksPerBar);
+  const endBar = Math.floor((nextEnd - 1) / ticksPerBar);
 
   const measureByIndex = new Map<number, MeasureMetadata>();
   for (let i = 0; i < layout.measureMetadata.length; i++) {
@@ -753,11 +753,11 @@ function computeChordAppendBoxes(
   const boxes: AppendBox[] = [];
 
   for (let bar = startBar; bar <= endBar; bar++) {
-    const barStartUnit = bar * unitsPerBar;
-    const barEndUnit = (bar + 1) * unitsPerBar;
+    const barStartTick = bar * ticksPerBar;
+    const barEndTick = (bar + 1) * ticksPerBar;
 
-    const segStart = Math.max(nextStart, barStartUnit);
-    const segEnd = Math.min(nextEnd, barEndUnit);
+    const segStart = Math.max(nextStart, barStartTick);
+    const segEnd = Math.min(nextEnd, barEndTick);
     if (segStart >= segEnd) continue;
 
     const measure =
@@ -772,8 +772,8 @@ function computeChordAppendBoxes(
       });
 
     const noteWidth = measure.width - (measure.noteStartX - measure.x);
-    const startFraction = (segStart - barStartUnit) / unitsPerBar;
-    const endFraction = (segEnd - barStartUnit) / unitsPerBar;
+    const startFraction = (segStart - barStartTick) / ticksPerBar;
+    const endFraction = (segEnd - barStartTick) / ticksPerBar;
     const startX = measure.noteStartX + startFraction * noteWidth;
     const endX = measure.noteStartX + endFraction * noteWidth;
 

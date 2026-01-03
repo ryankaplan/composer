@@ -1,47 +1,53 @@
-import { MelodyEvent, Unit, durationToUnits, pitchToMidi, ChordTrack } from "../lead-sheet/types";
+import {
+  MelodyEvent,
+  Tick,
+  durationToTicks,
+  pitchToMidi,
+  ChordTrack,
+} from "../lead-sheet/types";
 import { chordSymbolToMidi } from "./chords-to-midi";
 
 export type MelodyPlaybackEvent = {
   kind: "note" | "rest";
-  startUnit: Unit;
-  durationUnits: Unit;
+  startTick: Tick;
+  durationTicks: Tick;
   midi?: number;
 };
 
 export type ChordPlaybackEvent = {
-  startUnit: Unit;
-  durationUnits: Unit;
+  startTick: Tick;
+  durationTicks: Tick;
   midiNotes: number[];
 };
 
 export type PlaybackIR = {
   melodyEvents: MelodyPlaybackEvent[];
   chordEvents: ChordPlaybackEvent[];
-  endUnit: Unit;
+  endTick: Tick;
 };
 
 /**
  * Build a playback IR from a document snapshot.
- * Filters events to only include those starting at or after the caret unit.
+ * Filters events to only include those starting at or after the caret tick.
  * Merges tied notes into single sustained notes.
  */
 export function buildPlaybackIR(
   events: MelodyEvent[],
-  caretUnit: Unit,
-  documentEndUnit: Unit,
+  caretTick: Tick,
+  documentEndTick: Tick,
   chordTrack?: ChordTrack
 ): PlaybackIR {
   const melodyEvents: MelodyPlaybackEvent[] = [];
-  let currentUnit: Unit = 0;
+  let currentTick: Tick = 0;
 
   // Build melody events with tie merging
   let i = 0;
   while (i < events.length) {
     const event = events[i]!;
-    const eventDuration = durationToUnits(event.duration);
+    const eventDuration = durationToTicks(event.duration);
 
     // Only include events that start at or after the caret
-    if (currentUnit >= caretUnit) {
+    if (currentTick >= caretTick) {
       if (event.kind === "note") {
         // Check if this note starts a tie chain
         let totalDuration = eventDuration;
@@ -61,7 +67,7 @@ export function buildPlaybackIR(
             nextEvent.kind === "note" &&
             pitchToMidi(nextEvent.pitch) === midi
           ) {
-            totalDuration += durationToUnits(nextEvent.duration);
+            totalDuration += durationToTicks(nextEvent.duration);
             j++;
           } else {
             break;
@@ -70,25 +76,25 @@ export function buildPlaybackIR(
 
         melodyEvents.push({
           kind: "note",
-          startUnit: currentUnit,
-          durationUnits: totalDuration,
+          startTick: currentTick,
+          durationTicks: totalDuration,
           midi,
         });
 
         // Skip the tied notes we just merged
-        currentUnit += totalDuration;
+        currentTick += totalDuration;
         i = j;
         continue;
       } else if (event.kind === "rest") {
         melodyEvents.push({
           kind: "rest",
-          startUnit: currentUnit,
-          durationUnits: eventDuration,
+          startTick: currentTick,
+          durationTicks: eventDuration,
         });
       }
     }
 
-    currentUnit += eventDuration;
+    currentTick += eventDuration;
     i++;
   }
 
@@ -97,12 +103,12 @@ export function buildPlaybackIR(
   if (chordTrack) {
     for (const region of chordTrack.regions) {
       // Only include chords that start at or after the caret
-      if (region.start >= caretUnit) {
+      if (region.start >= caretTick) {
         const midiNotes = chordSymbolToMidi(region.text);
         if (midiNotes.length > 0) {
           chordEvents.push({
-            startUnit: region.start,
-            durationUnits: region.end - region.start,
+            startTick: region.start,
+            durationTicks: region.end - region.start,
             midiNotes,
           });
         }
@@ -113,7 +119,6 @@ export function buildPlaybackIR(
   return {
     melodyEvents,
     chordEvents,
-    endUnit: documentEndUnit,
+    endTick: documentEndTick,
   };
 }
-

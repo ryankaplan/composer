@@ -1,9 +1,16 @@
 // Core types for the lead-sheet editor
 
-// Time units: 1 unit = 1/16 note
-export type Unit = number;
+// Time units: 1 quarter note = 96 ticks
+export type Tick = number;
 
-export type Duration = "1/1" | "1/2" | "1/4" | "1/8" | "1/16";
+export type NoteValue = "1/1" | "1/2" | "1/4" | "1/8" | "1/16";
+
+export type Duration = {
+  base: NoteValue;
+  dots: 0 | 1 | 2;
+};
+
+export const TICKS_PER_QUARTER = 96;
 
 export type TimeSignature = {
   beatsPerBar: 3 | 4;
@@ -101,30 +108,48 @@ export type Measure = {
   index: number;
   startEventIdx: number;
   endEventIdx: number; // exclusive
-  filledUnits: number;
-  capacityUnits: number;
+  filledTicks: number;
+  capacityTicks: number;
   status: MeasureStatus;
 };
 
-// Helper to convert duration to units (whole = 16, half = 8, quarter = 4, eighth = 2, sixteenth = 1)
-export function durationToUnits(duration: Duration): number {
-  switch (duration) {
+// Helper to convert base note value to ticks
+export function baseToTicks(base: NoteValue): number {
+  switch (base) {
     case "1/1":
-      return 16;
+      return TICKS_PER_QUARTER * 4;
     case "1/2":
-      return 8;
+      return TICKS_PER_QUARTER * 2;
     case "1/4":
-      return 4;
+      return TICKS_PER_QUARTER;
     case "1/8":
-      return 2;
+      return TICKS_PER_QUARTER / 2;
     case "1/16":
-      return 1;
+      return TICKS_PER_QUARTER / 4;
   }
 }
 
-// Helper to get bar capacity in units
+// Helper to convert duration to ticks (including dots)
+export function durationToTicks(duration: Duration): number {
+  const baseTicks = baseToTicks(duration.base);
+  let totalTicks = baseTicks;
+  let dotValue = baseTicks / 2;
+
+  for (let i = 0; i < duration.dots; i++) {
+    totalTicks += dotValue;
+    dotValue /= 2;
+  }
+
+  return Math.floor(totalTicks);
+}
+
+// Helper to get bar capacity in ticks
 export function getBarCapacity(timeSignature: TimeSignature): number {
-  return timeSignature.beatsPerBar * 4; // quarter note = 4 units
+  // beatsPerBar * ticks per beat.
+  // Assuming beatUnit is 4 (quarter note), then ticks per beat = TICKS_PER_QUARTER.
+  // If we want to support other beatUnits: TICKS_PER_QUARTER * (4 / beatUnit)
+  const ticksPerBeat = TICKS_PER_QUARTER * (4 / timeSignature.beatUnit);
+  return timeSignature.beatsPerBar * ticksPerBeat;
 }
 
 // Helper to generate unique IDs for events
@@ -209,8 +234,8 @@ export function transposePitch(pitch: Pitch, semitones: number): Pitch {
 // A chord region spans time [start, end) with non-overlapping invariant
 export type ChordRegion = {
   id: string;
-  start: Unit; // inclusive, in 1/16 units
-  end: Unit; // exclusive, must be > start
+  start: Tick; // inclusive
+  end: Tick; // exclusive, must be > start
   text: string; // raw chord text (e.g. "CMaj7", "Dm7b5")
 };
 

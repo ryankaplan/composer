@@ -8,7 +8,7 @@ import {
 } from "./schema";
 
 const DB_NAME = "composer";
-const DB_VERSION = 1;
+const DB_VERSION = 2;
 const COMPOSITIONS_STORE = "compositions";
 const META_STORE = "meta";
 const META_KEY = "app";

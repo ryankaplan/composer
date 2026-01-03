@@ -1,4 +1,4 @@
-import { ChordTrack, ChordRegion, Unit, generateEventId } from "./types";
+import { ChordTrack, ChordRegion, Tick, generateEventId } from "./types";
 
 // ==================== VALIDATION ====================
 
@@ -37,17 +37,17 @@ export function validateChordTrack(track: ChordTrack): void {
 
 // ==================== QUERIES ====================
 
-// Find all chord regions that overlap a given measure range [barStartUnit, barEndUnit)
+// Find all chord regions that overlap a given measure range [barStartTick, barEndTick)
 export function findRegionsInMeasure(
   track: ChordTrack,
-  barStartUnit: Unit,
-  barEndUnit: Unit
+  barStartTick: Tick,
+  barEndTick: Tick
 ): ChordRegion[] {
   const result: ChordRegion[] = [];
 
   for (const region of track.regions) {
-    // Region overlaps measure if: region.start < barEndUnit && region.end > barStartUnit
-    if (region.start < barEndUnit && region.end > barStartUnit) {
+    // Region overlaps measure if: region.start < barEndTick && region.end > barStartTick
+    if (region.start < barEndTick && region.end > barStartTick) {
       result.push(region);
     }
   }
@@ -56,32 +56,32 @@ export function findRegionsInMeasure(
 }
 
 // Compute all available gaps in a measure for inserting new chords
-// Returns array of { start, end } gaps within [barStartUnit, barEndUnit)
+// Returns array of { start, end } gaps within [barStartTick, barEndTick)
 export function computeInsertionGaps(
   track: ChordTrack,
-  barStartUnit: Unit,
-  barEndUnit: Unit
-): Array<{ start: Unit; end: Unit }> {
+  barStartTick: Tick,
+  barEndTick: Tick
+): Array<{ start: Tick; end: Tick }> {
   const regionsInMeasure = findRegionsInMeasure(
     track,
-    barStartUnit,
-    barEndUnit
+    barStartTick,
+    barEndTick
   );
 
   if (regionsInMeasure.length === 0) {
     // No chords in this measure, return the entire measure as one gap
-    return [{ start: barStartUnit, end: barEndUnit }];
+    return [{ start: barStartTick, end: barEndTick }];
   }
 
-  const gaps: Array<{ start: Unit; end: Unit }> = [];
+  const gaps: Array<{ start: Tick; end: Tick }> = [];
 
   // Sort regions by start (should already be sorted, but be safe)
   const sorted = [...regionsInMeasure].sort((a, b) => a.start - b.start);
 
   // Gap before first region
   const firstRegion = sorted[0]!;
-  const gapBeforeStart = Math.max(barStartUnit, barStartUnit);
-  const gapBeforeEnd = Math.max(barStartUnit, firstRegion.start);
+  const gapBeforeStart = barStartTick;
+  const gapBeforeEnd = Math.max(barStartTick, firstRegion.start);
   if (gapBeforeEnd > gapBeforeStart) {
     gaps.push({ start: gapBeforeStart, end: gapBeforeEnd });
   }
@@ -90,8 +90,8 @@ export function computeInsertionGaps(
   for (let i = 0; i < sorted.length - 1; i++) {
     const current = sorted[i]!;
     const next = sorted[i + 1]!;
-    const gapStart = Math.max(barStartUnit, current.end);
-    const gapEnd = Math.min(barEndUnit, next.start);
+    const gapStart = Math.max(barStartTick, current.end);
+    const gapEnd = Math.min(barEndTick, next.start);
     if (gapEnd > gapStart) {
       gaps.push({ start: gapStart, end: gapEnd });
     }
@@ -99,8 +99,8 @@ export function computeInsertionGaps(
 
   // Gap after last region
   const lastRegion = sorted[sorted.length - 1]!;
-  const gapAfterStart = Math.max(barStartUnit, lastRegion.end);
-  const gapAfterEnd = Math.min(barEndUnit, barEndUnit);
+  const gapAfterStart = Math.max(barStartTick, lastRegion.end);
+  const gapAfterEnd = barEndTick;
   if (gapAfterEnd > gapAfterStart) {
     gaps.push({ start: gapAfterStart, end: gapAfterEnd });
   }
@@ -112,21 +112,21 @@ export function computeInsertionGaps(
 // Returns { start, end } for the gap, or null if the measure is completely filled
 export function findInsertionGap(
   track: ChordTrack,
-  barStartUnit: Unit,
-  barEndUnit: Unit,
-  clickUnit?: Unit
-): { start: Unit; end: Unit } | null {
-  const gaps = computeInsertionGaps(track, barStartUnit, barEndUnit);
+  barStartTick: Tick,
+  barEndTick: Tick,
+  clickTick?: Tick
+): { start: Tick; end: Tick } | null {
+  const gaps = computeInsertionGaps(track, barStartTick, barEndTick);
 
   if (gaps.length === 0) {
     return null; // Measure is completely filled
   }
 
-  // If clickUnit is provided, find the gap containing it
-  if (clickUnit !== undefined) {
+  // If clickTick is provided, find the gap containing it
+  if (clickTick !== undefined) {
     for (let i = 0; i < gaps.length; i++) {
       const gap = gaps[i]!;
-      if (clickUnit >= gap.start && clickUnit < gap.end) {
+      if (clickTick >= gap.start && clickTick < gap.end) {
         return gap;
       }
     }
@@ -150,8 +150,8 @@ export function findInsertionGap(
 // Returns the new track and the inserted region
 export function insertChordRegion(
   track: ChordTrack,
-  start: Unit,
-  end: Unit,
+  start: Tick,
+  end: Tick,
   text: string
 ): { track: ChordTrack; region: ChordRegion } {
   if (end <= start) {
@@ -214,8 +214,8 @@ export function deleteChordRegion(track: ChordTrack, id: string): ChordTrack {
 export function resizeChordRegion(
   track: ChordTrack,
   id: string,
-  newStart: Unit,
-  newEnd: Unit
+  newStart: Tick,
+  newEnd: Tick
 ): ChordTrack | null {
   const regionIdx = track.regions.findIndex((r) => r.id === id);
   if (regionIdx === -1) {
@@ -259,9 +259,9 @@ export function resizeChordRegion(
 export function clampResizeToNeighbors(
   track: ChordTrack,
   id: string,
-  newStart: Unit,
-  newEnd: Unit
-): { start: Unit; end: Unit } | null {
+  newStart: Tick,
+  newEnd: Tick
+): { start: Tick; end: Tick } | null {
   const regionIdx = track.regions.findIndex((r) => r.id === id);
   if (regionIdx === -1) {
     return null;

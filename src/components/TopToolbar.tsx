@@ -6,7 +6,7 @@ import { doc } from "../lead-sheet/Document";
 import { getActionShortcutText } from "../lead-sheet/actions";
 import { playbackEngine } from "../playback/engine";
 import { buildPlaybackIR } from "../playback/build-ir";
-import { caretToUnit } from "../playback/time";
+import { caretToTick } from "../playback/time";
 import { KEY_SIGNATURES, KeySignature } from "../lead-sheet/types";
 import { compositionStore } from "../compositions/store";
 import { FaIcon } from "./FaIcon";
@@ -21,16 +21,20 @@ export function TopToolbar(props: TopToolbarProps) {
   const keySignature = useObservable(doc.keySignature);
   const caret = useObservable(doc.caret);
   const events = useObservable(doc.events);
-  const documentEndUnit = useObservable(doc.documentEndUnit);
+  const documentEndTick = useObservable(doc.documentEndTick);
   const isPlaying = useObservable(playbackEngine.isPlaying);
   const bpm = useObservable(playbackEngine.bpm);
   const compositions = useObservable(compositionStore.compositions);
-  const currentCompositionId = useObservable(compositionStore.currentCompositionId);
-  
+  const currentCompositionId = useObservable(
+    compositionStore.currentCompositionId
+  );
+
   const [isEditingTitle, setIsEditingTitle] = useState(false);
   const [editingTitle, setEditingTitle] = useState("");
 
-  const currentComposition = compositions.find(c => c.id === currentCompositionId);
+  const currentComposition = compositions.find(
+    (c) => c.id === currentCompositionId
+  );
   const currentTitle = currentComposition?.title || "Untitled";
 
   function handleTimeSignatureChange(e: React.ChangeEvent<HTMLSelectElement>) {
@@ -46,14 +50,14 @@ export function TopToolbar(props: TopToolbarProps) {
   async function handlePlay() {
     if (!isPlaying) {
       const chordTrack = doc.chords.get();
-      const caretUnit = caretToUnit(events, caret);
+      const caretTick = caretToTick(events, caret);
       const ir = buildPlaybackIR(
         events,
-        caretUnit,
-        documentEndUnit,
+        caretTick,
+        documentEndTick,
         chordTrack
       );
-      await playbackEngine.playIR(ir, caretUnit);
+      await playbackEngine.playIR(ir, caretTick);
     }
   }
 

@@ -58,40 +58,78 @@ export function BottomToolbar() {
           >
             <DurationButton
               icon={<WholeNoteIcon size={16} />}
-              duration="1/1"
+              duration={{ base: "1/1", dots: 0 }}
               currentDuration={currentDuration}
-              onClick={() => handleDurationChange("1/1")}
+              onClick={() =>
+                handleDurationChange({
+                  base: "1/1",
+                  dots: currentDuration.dots,
+                })
+              }
               shortcut={getActionShortcutText("Set Duration Whole")}
             />
             <DurationButton
               icon={<HalfNoteIcon size={16} />}
-              duration="1/2"
+              duration={{ base: "1/2", dots: 0 }}
               currentDuration={currentDuration}
-              onClick={() => handleDurationChange("1/2")}
+              onClick={() =>
+                handleDurationChange({
+                  base: "1/2",
+                  dots: currentDuration.dots,
+                })
+              }
               shortcut={getActionShortcutText("Set Duration Half")}
             />
             <DurationButton
               icon={<QuarterNoteIcon size={16} />}
-              duration="1/4"
+              duration={{ base: "1/4", dots: 0 }}
               currentDuration={currentDuration}
-              onClick={() => handleDurationChange("1/4")}
+              onClick={() =>
+                handleDurationChange({
+                  base: "1/4",
+                  dots: currentDuration.dots,
+                })
+              }
               shortcut={getActionShortcutText("Set Duration Quarter")}
             />
             <DurationButton
               icon={<EighthNoteIcon size={16} />}
-              duration="1/8"
+              duration={{ base: "1/8", dots: 0 }}
               currentDuration={currentDuration}
-              onClick={() => handleDurationChange("1/8")}
+              onClick={() =>
+                handleDurationChange({
+                  base: "1/8",
+                  dots: currentDuration.dots,
+                })
+              }
               shortcut={getActionShortcutText("Set Duration Eighth")}
             />
             <DurationButton
               icon={<SixteenthNoteIcon size={16} />}
-              duration="1/16"
+              duration={{ base: "1/16", dots: 0 }}
               currentDuration={currentDuration}
-              onClick={() => handleDurationChange("1/16")}
+              onClick={() =>
+                handleDurationChange({
+                  base: "1/16",
+                  dots: currentDuration.dots,
+                })
+              }
               shortcut={getActionShortcutText("Set Duration Sixteenth")}
             />
           </Flex>
+        </Flex>
+
+        <Box width="1px" height="24px" bg="gray.200" />
+
+        {/* Dotted */}
+        <Flex gap={1}>
+          <ActionButton
+            label="."
+            tooltip="Dotted"
+            isActive={currentDuration.dots === 1}
+            shortcut={getActionShortcutText("Toggle Dotted")}
+            onClick={() => performAction("Toggle Dotted")}
+          />
         </Flex>
 
         <Box width="1px" height="24px" bg="gray.200" />
@@ -186,7 +224,7 @@ type DurationButtonProps = {
 
 function DurationButton(props: DurationButtonProps) {
   const { icon, duration, currentDuration, onClick, shortcut } = props;
-  const isActive = currentDuration === duration;
+  const isActive = currentDuration.base === duration.base;
 
   return (
     <Tooltip.Root positioning={{ placement: "top" }}>
@@ -242,11 +280,12 @@ type ActionButtonProps = {
   label: string;
   tooltip: string;
   shortcut?: string | null;
+  isActive?: boolean;
   onClick: () => void;
 };
 
 function ActionButton(props: ActionButtonProps) {
-  const { label, tooltip, shortcut, onClick } = props;
+  const { label, tooltip, shortcut, isActive, onClick } = props;
 
   return (
     <Tooltip.Root positioning={{ placement: "top" }}>
@@ -254,8 +293,8 @@ function ActionButton(props: ActionButtonProps) {
         <Box
           as="button"
           onClick={onClick}
-          bg="transparent"
-          color="gray.700"
+          bg={isActive ? "white" : "transparent"}
+          color={isActive ? "gray.900" : "gray.700"}
           px={2}
           py={1}
           borderRadius="4px"
@@ -266,13 +305,14 @@ function ActionButton(props: ActionButtonProps) {
           transition="all 0.15s ease"
           border="none"
           minWidth="28px"
+          boxShadow={isActive ? "sm" : "none"}
           _hover={{
-            bg: "blackAlpha.50",
+            bg: isActive ? "white" : "blackAlpha.50",
             color: "gray.900",
           }}
           _active={{
             transform: "scale(0.98)",
-            bg: "blackAlpha.100",
+            bg: isActive ? "white" : "blackAlpha.100",
           }}
         >
           {label}
