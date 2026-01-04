@@ -52,18 +52,9 @@ export function BottomToolbar() {
       <Flex gap={2} alignItems="center">
         {/* Duration */}
         <Flex alignItems="center" gap={1.5}>
-          <Box fontSize="xs" color="gray.600" fontWeight="medium">
-            Duration
-          </Box>
-          <Flex
-            bg="gray.50"
-            borderRadius="6px"
-            padding="2px"
-            border="1px solid"
-            borderColor="gray.200"
-          >
+          <Flex bg="blackAlpha.50" borderRadius="8px" padding="2px" gap={0.5}>
             <DurationButton
-              icon={<WholeNoteIcon size={16} />}
+              icon={<WholeNoteIcon size={20} />}
               duration={WHOLE_NOTE}
               currentDuration={currentDuration}
               onClick={() =>
@@ -75,7 +66,7 @@ export function BottomToolbar() {
               shortcut={getActionShortcutText("Set Duration Whole")}
             />
             <DurationButton
-              icon={<HalfNoteIcon size={16} />}
+              icon={<HalfNoteIcon size={20} />}
               duration={HALF_NOTE}
               currentDuration={currentDuration}
               onClick={() =>
@@ -87,7 +78,7 @@ export function BottomToolbar() {
               shortcut={getActionShortcutText("Set Duration Half")}
             />
             <DurationButton
-              icon={<QuarterNoteIcon size={16} />}
+              icon={<QuarterNoteIcon size={20} />}
               duration={QUARTER_NOTE}
               currentDuration={currentDuration}
               onClick={() =>
@@ -99,7 +90,7 @@ export function BottomToolbar() {
               shortcut={getActionShortcutText("Set Duration Quarter")}
             />
             <DurationButton
-              icon={<EighthNoteIcon size={16} />}
+              icon={<EighthNoteIcon size={20} />}
               duration={EIGHTH_NOTE}
               currentDuration={currentDuration}
               onClick={() =>
@@ -111,7 +102,7 @@ export function BottomToolbar() {
               shortcut={getActionShortcutText("Set Duration Eighth")}
             />
             <DurationButton
-              icon={<SixteenthNoteIcon size={16} />}
+              icon={<SixteenthNoteIcon size={20} />}
               duration={SIXTEENTH_NOTE}
               currentDuration={currentDuration}
               onClick={() =>
@@ -125,10 +116,8 @@ export function BottomToolbar() {
           </Flex>
         </Flex>
 
-        <Box width="1px" height="24px" bg="gray.200" />
-
         {/* Dotted */}
-        <Flex gap={1}>
+        <Flex gap={1.5}>
           <ActionButton
             label="."
             tooltip="Dotted"
@@ -138,10 +127,10 @@ export function BottomToolbar() {
           />
         </Flex>
 
-        <Box width="1px" height="24px" bg="gray.200" />
+        <Box width="1px" height="28px" bg="gray.200" />
 
         {/* Accidentals */}
-        <Flex gap={1}>
+        <Flex gap={1.5}>
           <ActionButton
             label="♮"
             tooltip="Natural"
@@ -162,10 +151,10 @@ export function BottomToolbar() {
           />
         </Flex>
 
-        <Box width="1px" height="24px" bg="gray.200" />
+        <Box width="1px" height="28px" bg="gray.200" />
 
         {/* Transpose */}
-        <Flex gap={1}>
+        <Flex gap={1.5}>
           <ActionButton
             label={getActionShortcutText("Transpose Semitone Up")!}
             tooltip="Transpose semitone up"
@@ -192,10 +181,10 @@ export function BottomToolbar() {
           />
         </Flex>
 
-        <Box width="1px" height="24px" bg="gray.200" />
+        <Box width="1px" height="28px" bg="gray.200" />
 
         {/* Other editing actions */}
-        <Flex gap={1}>
+        <Flex gap={1.5}>
           <ActionButton
             label="⌢"
             tooltip="Toggle Tie"
@@ -240,14 +229,14 @@ function DurationButton(props: DurationButtonProps) {
           onClick={onClick}
           bg={isActive ? "white" : "transparent"}
           color={isActive ? "gray.900" : "gray.600"}
-          px={2}
-          py={1}
-          borderRadius="4px"
-          fontSize="md"
+          px={2.5}
+          py={1.5}
+          borderRadius="6px"
+          fontSize="lg"
           fontWeight="medium"
           cursor="pointer"
           userSelect="none"
-          transition="all 0.15s ease"
+          transition="all 0.1s ease"
           border="none"
           boxShadow={isActive ? "sm" : "none"}
           display="flex"
@@ -258,7 +247,7 @@ function DurationButton(props: DurationButtonProps) {
             color: "gray.900",
           }}
           _active={{
-            transform: "scale(0.98)",
+            transform: "scale(0.96)",
           }}
         >
           {icon}
@@ -301,23 +290,23 @@ function ActionButton(props: ActionButtonProps) {
           onClick={onClick}
           bg={isActive ? "white" : "transparent"}
           color={isActive ? "gray.900" : "gray.700"}
-          px={2}
-          py={1}
-          borderRadius="4px"
-          fontSize="sm"
+          px={2.5}
+          py={1.5}
+          borderRadius="6px"
+          fontSize="md"
           fontWeight="medium"
           cursor="pointer"
           userSelect="none"
-          transition="all 0.15s ease"
+          transition="all 0.1s ease"
           border="none"
-          minWidth="28px"
+          minWidth="32px"
           boxShadow={isActive ? "sm" : "none"}
           _hover={{
             bg: isActive ? "white" : "blackAlpha.50",
             color: "gray.900",
           }}
           _active={{
-            transform: "scale(0.98)",
+            transform: "scale(0.96)",
             bg: isActive ? "white" : "blackAlpha.100",
           }}
         >
