@@ -1,16 +1,25 @@
+--
+
+- [ ] Indicate selected note(s); try removing caret?
 - [ ] Duration / dot buttons should reflect selection, let you edit it
-- [ ] Indicate selected note(s)
+
+- [ ] Chord palette?
+- [ ] Drag to select?
+
+--- Music bits
+
+- Triplets
+- Ties
+- Slides
+- Swing timing
+- [ ] Join adjacent 8th notes?
+
+--- UX bits
 
 - [ ] File context menu is flaky
-- [ ] Cursor should move to start of next measure where appropriate
-
----
-
-- [ ] Join adjacent 8th notes?
+- [ ] Caret? should move to start of next measure where appropriate
 - [ ] Filename flickers after changing
 - [ ] Saving indicator
-- [ ] Drag to select?
-- [ ] Chord palette / piano?
 
 ---
 
