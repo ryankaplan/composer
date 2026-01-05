@@ -1,6 +1,5 @@
 --
 
-- [ ] Add swing
 - [ ] Indicate selected note(s); try removing caret?
 - [ ] Drag to select?
 
@@ -9,7 +8,6 @@
 - Triplets
 - Ties
 - Slides
-- Swing timing
 - [ ] Join adjacent 8th notes?
 
 --- UX bits
@@ -26,3 +24,4 @@
 - [x] Support for dotted notes
 - [x] Some open format export?
 - [x] Fix sidebar animation
+- [x] Add swing

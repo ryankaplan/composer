@@ -10,6 +10,71 @@ export function secondsPerTick(bpm: number): number {
 }
 
 /**
+ * Convert a tick offset to seconds from the start of the performance,
+ * accounting for swing if enabled.
+ */
+export function tickOffsetToSeconds(
+  tickOffset: Tick,
+  bpm: number,
+  swingEnabled: boolean,
+  swingRatio: number
+): number {
+  const secondsPerQuarter = 60 / bpm;
+  const quarterIndex = Math.floor(tickOffset / TICKS_PER_QUARTER);
+  const tickInQuarter = tickOffset % TICKS_PER_QUARTER;
+  const baseSeconds = quarterIndex * secondsPerQuarter;
+
+  if (!swingEnabled) {
+    return baseSeconds + (tickInQuarter / TICKS_PER_QUARTER) * secondsPerQuarter;
+  }
+
+  // Swing logic: first 48 ticks (eighth note) take swingRatio of the quarter duration
+  if (tickInQuarter < TICKS_PER_QUARTER / 2) {
+    const progressInEighth = tickInQuarter / (TICKS_PER_QUARTER / 2);
+    return baseSeconds + progressInEighth * (swingRatio * secondsPerQuarter);
+  } else {
+    const progressInEighth =
+      (tickInQuarter - TICKS_PER_QUARTER / 2) / (TICKS_PER_QUARTER / 2);
+    return (
+      baseSeconds +
+      swingRatio * secondsPerQuarter +
+      progressInEighth * ((1 - swingRatio) * secondsPerQuarter)
+    );
+  }
+}
+
+/**
+ * Convert seconds from the start of the performance to a tick offset,
+ * accounting for swing if enabled.
+ */
+export function secondsToTickOffset(
+  seconds: number,
+  bpm: number,
+  swingEnabled: boolean,
+  swingRatio: number
+): number {
+  const secondsPerQuarter = 60 / bpm;
+  const quarterIndex = Math.floor(seconds / secondsPerQuarter);
+  const secondsInQuarter = seconds % secondsPerQuarter;
+  const baseTicks = quarterIndex * TICKS_PER_QUARTER;
+
+  if (!swingEnabled) {
+    return baseTicks + (secondsInQuarter / secondsPerQuarter) * TICKS_PER_QUARTER;
+  }
+
+  const firstEighthSeconds = swingRatio * secondsPerQuarter;
+  if (secondsInQuarter < firstEighthSeconds) {
+    const progressInEighth = secondsInQuarter / firstEighthSeconds;
+    return baseTicks + progressInEighth * (TICKS_PER_QUARTER / 2);
+  } else {
+    const secondEighthSeconds = secondsPerQuarter - firstEighthSeconds;
+    const progressInEighth =
+      (secondsInQuarter - firstEighthSeconds) / secondEighthSeconds;
+    return baseTicks + TICKS_PER_QUARTER / 2 + progressInEighth * (TICKS_PER_QUARTER / 2);
+  }
+}
+
+/**
  * Convert a caret position (insertion index between events) to tick time.
  * 
  * The caret sits "between" events. For example:

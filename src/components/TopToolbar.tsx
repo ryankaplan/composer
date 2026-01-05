@@ -25,6 +25,7 @@ export function TopToolbar(props: TopToolbarProps) {
   const documentEndTick = useObservable(doc.documentEndTick);
   const isPlaying = useObservable(playbackEngine.isPlaying);
   const bpm = useObservable(playbackEngine.bpm);
+  const swingEnabled = useObservable(playbackEngine.swingEnabled);
   const compositions = useObservable(compositionStore.compositions);
   const currentCompositionId = useObservable(
     compositionStore.currentCompositionId
@@ -32,6 +33,14 @@ export function TopToolbar(props: TopToolbarProps) {
 
   const [isEditingTitle, setIsEditingTitle] = useState(false);
   const [editingTitle, setEditingTitle] = useState("");
+
+  const [isEditingBpm, setIsEditingBpm] = useState(false);
+  const [editingBpm, setEditingBpm] = useState(bpm.toString());
+
+  // Keep editingBpm in sync with bpm when not editing
+  if (!isEditingBpm && editingBpm !== bpm.toString()) {
+    setEditingBpm(bpm.toString());
+  }
 
   const currentComposition = compositions.find(
     (c) => c.id === currentCompositionId
@@ -69,10 +78,38 @@ export function TopToolbar(props: TopToolbarProps) {
   }
 
   function handleBpmChange(e: React.ChangeEvent<HTMLInputElement>) {
-    const newBpm = parseInt(e.target.value);
-    if (!isNaN(newBpm) && newBpm > 0 && newBpm <= 300) {
+    setEditingBpm(e.target.value);
+  }
+
+  function handleBpmFocus(e: React.FocusEvent<HTMLInputElement>) {
+    setIsEditingBpm(true);
+    e.target.select();
+  }
+
+  function handleBpmBlur() {
+    commitBpmEdit();
+  }
+
+  function handleBpmKeyDown(e: React.KeyboardEvent<HTMLInputElement>) {
+    if (e.key === "Enter") {
+      commitBpmEdit();
+    } else if (e.key === "Escape") {
+      setIsEditingBpm(false);
+      setEditingBpm(bpm.toString());
+    }
+  }
+
+  function commitBpmEdit() {
+    const newBpm = parseInt(editingBpm);
+    if (!isNaN(newBpm) && newBpm >= 20 && newBpm <= 300) {
       playbackEngine.bpm.set(newBpm);
     }
+    setIsEditingBpm(false);
+    setEditingBpm(bpm.toString());
+  }
+
+  function handleToggleSwing() {
+    playbackEngine.swingEnabled.set(!swingEnabled);
   }
 
   function handleToggleSidebar() {
@@ -352,25 +389,82 @@ export function TopToolbar(props: TopToolbarProps) {
 
         <Box width="1px" height="20px" bg="gray.200" mx={1} />
 
+        <Tooltip.Root positioning={{ placement: "bottom" }}>
+          <Tooltip.Trigger asChild>
+            <button
+              onClick={handleToggleSwing}
+              style={{
+                background: swingEnabled ? "#edf2f7" : "transparent",
+                color: swingEnabled ? "#2b6cb0" : "#4a5568",
+                padding: "4px 8px",
+                borderRadius: "4px",
+                fontSize: "12px",
+                fontWeight: 600,
+                cursor: "pointer",
+                userSelect: "none",
+                transition: "all 0.15s ease",
+                border: "1px solid",
+                borderColor: swingEnabled ? "#bee3f8" : "transparent",
+                display: "flex",
+                alignItems: "center",
+                gap: "4px",
+              }}
+              onMouseEnter={(e) => {
+                if (!swingEnabled) {
+                  e.currentTarget.style.backgroundColor = "rgba(0, 0, 0, 0.04)";
+                }
+              }}
+              onMouseLeave={(e) => {
+                if (!swingEnabled) {
+                  e.currentTarget.style.backgroundColor = "transparent";
+                }
+              }}
+            >
+              <Box
+                width="8px"
+                height="8px"
+                borderRadius="full"
+                bg={swingEnabled ? "blue.500" : "gray.300"}
+              />
+              SWING
+            </button>
+          </Tooltip.Trigger>
+          <Tooltip.Positioner>
+            <Tooltip.Content
+              bg="gray.800"
+              color="white"
+              px={2}
+              py={1}
+              borderRadius="md"
+              fontSize="xs"
+            >
+              Swing (2:1)
+            </Tooltip.Content>
+          </Tooltip.Positioner>
+        </Tooltip.Root>
+
+        <Box width="1px" height="20px" bg="gray.200" mx={1} />
+
         <Flex alignItems="center" gap={1.5}>
           <Box fontSize="xs" color="gray.600" fontWeight="medium">
             BPM
           </Box>
           <Input
-            type="number"
-            value={bpm}
+            value={editingBpm}
             onChange={handleBpmChange}
-            min={20}
-            max={300}
-            width="60px"
+            onFocus={handleBpmFocus}
+            onBlur={handleBpmBlur}
+            onKeyDown={handleBpmKeyDown}
+            width="50px"
             size="xs"
             textAlign="center"
             bg="white"
             border="1px solid"
-            borderColor="gray.200"
+            borderColor={isEditingBpm ? "blue.400" : "gray.200"}
             _hover={{
-              borderColor: "gray.300",
+              borderColor: isEditingBpm ? "blue.400" : "gray.300",
             }}
+            outline="none"
           />
         </Flex>
       </Flex>

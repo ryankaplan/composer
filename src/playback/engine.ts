@@ -1,12 +1,14 @@
 import * as Tone from "tone";
 import { Observable } from "../lib/observable";
 import { PlaybackIR } from "./build-ir";
-import { secondsPerTick } from "./time";
+import { secondsPerTick, tickOffsetToSeconds, secondsToTickOffset } from "./time";
 
 // Playback engine state
 export class PlaybackEngine {
   readonly isPlaying = new Observable<boolean>(false);
   readonly bpm = new Observable<number>(120);
+  readonly swingEnabled = new Observable<boolean>(false);
+  readonly swingRatio = new Observable<number>(2 / 3);
   readonly playheadTick = new Observable<number>(0);
 
   private sampler: Tone.Sampler | null = null;
@@ -82,13 +84,24 @@ export class PlaybackEngine {
     const now = Tone.now();
     this.playbackStartTime = now;
 
-    const secPerTick = secondsPerTick(this.bpm.get());
+    const bpm = this.bpm.get();
+    const swingEnabled = this.swingEnabled.get();
+    const swingRatio = this.swingRatio.get();
 
     // Schedule melody events
     for (const event of ir.melodyEvents) {
       if (event.kind === "note" && event.midi !== undefined) {
-        const startTime = now + (event.startTick - startTickParam) * secPerTick;
-        const durationSeconds = event.durationTicks * secPerTick;
+        const startTime =
+          now +
+          (tickOffsetToSeconds(event.startTick, bpm, swingEnabled, swingRatio) -
+            tickOffsetToSeconds(startTickParam, bpm, swingEnabled, swingRatio));
+        const durationSeconds =
+          tickOffsetToSeconds(
+            event.startTick + event.durationTicks,
+            bpm,
+            swingEnabled,
+            swingRatio
+          ) - tickOffsetToSeconds(event.startTick, bpm, swingEnabled, swingRatio);
         this.scheduleNoteWithTransport(event.midi, startTime, durationSeconds);
       }
       // Rests don't need scheduling (they're just silence)
@@ -96,8 +109,17 @@ export class PlaybackEngine {
 
     // Schedule chord events
     for (const event of ir.chordEvents) {
-      const startTime = now + (event.startTick - startTickParam) * secPerTick;
-      const durationSeconds = event.durationTicks * secPerTick;
+      const startTime =
+        now +
+        (tickOffsetToSeconds(event.startTick, bpm, swingEnabled, swingRatio) -
+          tickOffsetToSeconds(startTickParam, bpm, swingEnabled, swingRatio));
+      const durationSeconds =
+        tickOffsetToSeconds(
+          event.startTick + event.durationTicks,
+          bpm,
+          swingEnabled,
+          swingRatio
+        ) - tickOffsetToSeconds(event.startTick, bpm, swingEnabled, swingRatio);
       this.scheduleChordWithTransport(
         event.midiNotes,
         startTime,
@@ -109,7 +131,9 @@ export class PlaybackEngine {
     this.startPlayheadAnimation();
 
     // Schedule automatic stop at the end
-    const totalDuration = (ir.endTick - startTickParam) * secPerTick;
+    const totalDuration =
+      tickOffsetToSeconds(ir.endTick, bpm, swingEnabled, swingRatio) -
+      tickOffsetToSeconds(startTickParam, bpm, swingEnabled, swingRatio);
     const stopTimeoutId = setTimeout(() => {
       if (this.isPlaying.get()) {
         this.stop();
@@ -230,9 +254,22 @@ export class PlaybackEngine {
 
       const currentTime = Tone.now();
       const elapsedSeconds = currentTime - this.playbackStartTime;
-      const secPerTick = secondsPerTick(this.bpm.get());
-      const elapsedTicks = elapsedSeconds / secPerTick;
-      const currentTick = this.startTick + elapsedTicks;
+      const bpm = this.bpm.get();
+      const swingEnabled = this.swingEnabled.get();
+      const swingRatio = this.swingRatio.get();
+
+      const startSeconds = tickOffsetToSeconds(
+        this.startTick,
+        bpm,
+        swingEnabled,
+        swingRatio
+      );
+      const currentTick = secondsToTickOffset(
+        startSeconds + elapsedSeconds,
+        bpm,
+        swingEnabled,
+        swingRatio
+      );
 
       this.playheadTick.set(currentTick);
 
