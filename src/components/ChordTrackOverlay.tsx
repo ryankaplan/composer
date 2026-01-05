@@ -8,6 +8,7 @@ import {
   Tick,
   EIGHTH_NOTE,
   durationToTicks,
+  SIXTEENTH_NOTE,
 } from "../lead-sheet/types";
 import { LeadSheetLayout, MeasureMetadata } from "../lead-sheet/vexflow-render";
 import {
@@ -150,7 +151,7 @@ export function ChordTrackOverlay({
       if (tick === null) return;
 
       // Snap to eighth note boundaries
-      const snapTicks = durationToTicks(EIGHTH_NOTE);
+      const snapTicks = durationToTicks(SIXTEENTH_NOTE);
       const snappedTick = Math.round(tick / snapTicks) * snapTicks;
 
       // Compute new start/end based on which handle is dragging
