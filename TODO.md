@@ -1,9 +1,7 @@
 --
 
+- [ ] Add swing
 - [ ] Indicate selected note(s); try removing caret?
-- [ ] Duration / dot buttons should reflect selection, let you edit it
-
-- [ ] Chord palette?
 - [ ] Drag to select?
 
 --- Music bits
@@ -23,6 +21,7 @@
 
 ---
 
+- [x] Duration / dot buttons should reflect selection, let you edit it
 - [x] Play on insert / edit notes and chords
 - [x] Support for dotted notes
 - [x] Some open format export?

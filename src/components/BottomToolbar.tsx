@@ -4,6 +4,8 @@ import { Tooltip } from "@chakra-ui/react/tooltip";
 import { useObservable } from "../lib/observable";
 import { interfaceState } from "../lead-sheet/InterfaceState";
 import { getAction, getActionShortcutText } from "../lead-sheet/actions";
+import { doc } from "../lead-sheet/Document";
+import { getSelectedFieldValues } from "../lead-sheet/selection-field-values";
 import {
   Duration,
   EIGHTH_NOTE,
@@ -22,6 +24,24 @@ import {
 
 export function BottomToolbar() {
   const currentDuration = useObservable(interfaceState.currentDuration);
+  const events = useObservable(doc.events);
+  const normalizedSelection = useObservable(doc.normalizedSelection);
+
+  // Compute selection-aware state
+  const selectedBases = getSelectedFieldValues(
+    events,
+    normalizedSelection,
+    (e) => e.duration.base
+  );
+  const selectedDots = getSelectedFieldValues(
+    events,
+    normalizedSelection,
+    (e) => e.duration.dots
+  );
+
+  const hasSelection = selectedBases.length > 0;
+  const uniformBase = selectedBases.length === 1 ? selectedBases[0] : null;
+  const uniformDots = selectedDots.length === 1 ? selectedDots[0] : null;
 
   function performAction(actionName: string) {
     const action = getAction(actionName as any);
@@ -31,7 +51,26 @@ export function BottomToolbar() {
   }
 
   function handleDurationChange(duration: Duration) {
-    interfaceState.setCurrentDuration(duration);
+    if (hasSelection) {
+      doc.setDurationBaseForSelection(duration.base);
+    } else {
+      interfaceState.setCurrentDuration(duration);
+    }
+  }
+
+  function handleToggleDotted() {
+    if (hasSelection) {
+      // If dots are mixed -> set all to dotted (dots=1)
+      // If dots are uniform -> toggle
+      if (selectedDots.length > 1) {
+        doc.setDurationDotsForSelection(1);
+      } else {
+        const currentDots = selectedDots[0] ?? 0;
+        doc.setDurationDotsForSelection(currentDots === 0 ? 1 : 0);
+      }
+    } else {
+      performAction("Toggle Dotted");
+    }
   }
 
   return (
@@ -56,7 +95,11 @@ export function BottomToolbar() {
             <DurationButton
               icon={<WholeNoteIcon size={20} />}
               duration={WHOLE_NOTE}
-              currentDuration={currentDuration}
+              isActive={
+                hasSelection
+                  ? uniformBase === "1/1"
+                  : currentDuration.base === "1/1"
+              }
               onClick={() =>
                 handleDurationChange({
                   base: "1/1",
@@ -68,7 +111,11 @@ export function BottomToolbar() {
             <DurationButton
               icon={<HalfNoteIcon size={20} />}
               duration={HALF_NOTE}
-              currentDuration={currentDuration}
+              isActive={
+                hasSelection
+                  ? uniformBase === "1/2"
+                  : currentDuration.base === "1/2"
+              }
               onClick={() =>
                 handleDurationChange({
                   base: "1/2",
@@ -80,7 +127,11 @@ export function BottomToolbar() {
             <DurationButton
               icon={<QuarterNoteIcon size={20} />}
               duration={QUARTER_NOTE}
-              currentDuration={currentDuration}
+              isActive={
+                hasSelection
+                  ? uniformBase === "1/4"
+                  : currentDuration.base === "1/4"
+              }
               onClick={() =>
                 handleDurationChange({
                   base: "1/4",
@@ -92,7 +143,11 @@ export function BottomToolbar() {
             <DurationButton
               icon={<EighthNoteIcon size={20} />}
               duration={EIGHTH_NOTE}
-              currentDuration={currentDuration}
+              isActive={
+                hasSelection
+                  ? uniformBase === "1/8"
+                  : currentDuration.base === "1/8"
+              }
               onClick={() =>
                 handleDurationChange({
                   base: "1/8",
@@ -104,7 +159,11 @@ export function BottomToolbar() {
             <DurationButton
               icon={<SixteenthNoteIcon size={20} />}
               duration={SIXTEENTH_NOTE}
-              currentDuration={currentDuration}
+              isActive={
+                hasSelection
+                  ? uniformBase === "1/16"
+                  : currentDuration.base === "1/16"
+              }
               onClick={() =>
                 handleDurationChange({
                   base: "1/16",
@@ -121,9 +180,11 @@ export function BottomToolbar() {
           <ActionButton
             label="."
             tooltip="Dotted"
-            isActive={currentDuration.dots === 1}
+            isActive={
+              hasSelection ? uniformDots === 1 : currentDuration.dots === 1
+            }
             shortcut={getActionShortcutText("Toggle Dotted")}
-            onClick={() => performAction("Toggle Dotted")}
+            onClick={handleToggleDotted}
           />
         </Flex>
 
@@ -212,14 +273,13 @@ export function BottomToolbar() {
 type DurationButtonProps = {
   icon: React.ReactNode;
   duration: Duration;
-  currentDuration: Duration;
+  isActive: boolean;
   onClick: () => void;
   shortcut: string | null;
 };
 
 function DurationButton(props: DurationButtonProps) {
-  const { icon, duration, currentDuration, onClick, shortcut } = props;
-  const isActive = currentDuration.base === duration.base;
+  const { icon, isActive, onClick, shortcut } = props;
 
   return (
     <Tooltip.Root positioning={{ placement: "top" }}>

@@ -731,6 +731,70 @@ export class Document {
     });
   }
 
+  // Set duration base for all selected note/rest events
+  setDurationBaseForSelection(base: NoteValue) {
+    const selectedIndices = this.getSelectedNoteIndicesAll();
+    if (selectedIndices.length === 0) return;
+
+    return this.withUndoStep(() => {
+      const events = this.events.get();
+      const newEvents = [...events];
+
+      for (const idx of selectedIndices) {
+        const event = newEvents[idx];
+        if (event && (event.kind === "note" || event.kind === "rest")) {
+          newEvents[idx] = {
+            ...event,
+            duration: { ...event.duration, base },
+          };
+        }
+      }
+
+      this.events.set(newEvents);
+    });
+  }
+
+  // Set duration dots for all selected note/rest events
+  setDurationDotsForSelection(dots: 0 | 1 | 2) {
+    const selectedIndices = this.getSelectedNoteIndicesAll();
+    if (selectedIndices.length === 0) return;
+
+    return this.withUndoStep(() => {
+      const events = this.events.get();
+      const newEvents = [...events];
+
+      for (const idx of selectedIndices) {
+        const event = newEvents[idx];
+        if (event && (event.kind === "note" || event.kind === "rest")) {
+          newEvents[idx] = {
+            ...event,
+            duration: { ...event.duration, dots },
+          };
+        }
+      }
+
+      this.events.set(newEvents);
+    });
+  }
+
+  // Helper: get indices of all selected note/rest events
+  private getSelectedNoteIndicesAll(): number[] {
+    const normalized = this.normalizedSelection.get();
+    if (!normalized) return [];
+
+    const events = this.events.get();
+    const indices: number[] = [];
+
+    for (let i = normalized.start; i < normalized.end; i++) {
+      const event = events[i];
+      if (event && (event.kind === "note" || event.kind === "rest")) {
+        indices.push(i);
+      }
+    }
+
+    return indices;
+  }
+
   // ==================== DOCUMENT LENGTH OPERATIONS ====================
 
   // Extend the document by a number of measures
